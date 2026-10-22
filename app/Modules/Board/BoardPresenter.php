@@ -83,7 +83,13 @@ class BoardPresenter
                 ->groupBy('post_id')->selectRaw('post_id, count(*) as n')->pluck('n', 'post_id')
             : collect();
 
-        return $posts->map(function (Post $p) use ($user, $canManage, $canModerate, $board, $reactions, $othersComments) {
+        // Reaksi (hati/bintang/dll.) dari orang lain pada kartu sendiri
+        $othersReactions = $mineIds && $kind !== 'none'
+            ? DB::table('reactions')->whereIn('post_id', $mineIds)->where('kind', $kind)->where('user_id', '!=', $user->id)
+                ->groupBy('post_id')->selectRaw('post_id, count(*) as n')->pluck('n', 'post_id')
+            : collect();
+
+        return $posts->map(function (Post $p) use ($user, $canManage, $canModerate, $board, $reactions, $othersComments, $othersReactions) {
                 // Identitas asli post anonim tidak pernah dikirim ke siswa lain
                 $showAuthor = ! $p->is_anonymous || $canManage || $p->author_id === $user->id;
 
@@ -104,6 +110,7 @@ class BoardPresenter
                     'is_mine' => $p->author_id === $user->id,
                     'comment_count' => $p->comment_count,
                     'others_comments' => (int) ($othersComments[$p->id] ?? 0),
+                    'others_reactions' => (int) ($othersReactions[$p->id] ?? 0),
                     'status' => $p->status,
                     'moderation_reason' => ($canModerate || $p->author_id === $user->id) ? $p->moderation_reason : null,
                     'report_count' => $canModerate ? $p->report_count : 0,

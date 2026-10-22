@@ -48,10 +48,14 @@ class HandleInertiaRequests extends Middleware
                 ] : null,
             ],
             'theme' => fn () => app(ThemeResolver::class)->resolve($user, $board instanceof Board ? $board : null),
-            'flash' => [
-                'success' => fn () => $request->session()->get('success'),
-                'error' => fn () => $request->session()->get('error'),
-            ],
+            // `id` unik per pesan: sinkron papan (partial reload) tidak mengirim ulang flash,
+            // dan klien mengingat props lama; id mencegah pesan lama muncul lagi sebagai toast
+            'flash' => function () use ($request) {
+                $success = $request->session()->get('success');
+                $error = $request->session()->get('error');
+
+                return ['success' => $success, 'error' => $error, 'id' => ($success || $error) ? (string) \Illuminate\Support\Str::uuid() : null];
+            },
         ];
     }
 

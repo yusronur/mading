@@ -6,10 +6,14 @@ import { toasts, toast, dismissToast } from '@/lib/toast';
 // Pesan dari server (flash) ditampilkan lewat sistem toast yang sama
 // dengan pemberitahuan dari sisi klien (mis. "Kode tersalin").
 const page = usePage();
+let lastId = null;
 
 watch(
     () => page.props.flash,
     (flash) => {
+        // Hanya pesan baru (id berbeda); props lama yang terbawa partial reload diabaikan
+        if (!flash?.id || flash.id === lastId) return;
+        lastId = flash.id;
         if (flash?.error) toast(flash.error, 'error');
         else if (flash?.success) toast(flash.success, 'success');
     },

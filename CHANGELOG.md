@@ -2,6 +2,16 @@
 
 Format mengikuti Blueprint Bab 17.2. Versi memakai SemVer (`0.x` selama Fase 0-3).
 
+## [0.1.5] - 2026-10-22
+
+Tanpa migrasi; jalankan `npm run build`.
+
+- Perbaikan: pengguna yang pernah mengirim kartu melihat toast "Kartu terkirim!" muncul lagi setiap ada
+  komentar atau hati baru dari orang lain (pesan lama terbawa pembaruan papan). Pesan flash kini punya id
+  unik dan hanya ditampilkan sekali.
+- Pemilik kartu mendapat notifikasi saat ada hati/bintang/suara/nilai baru dari orang lain di kartunya
+  ("♥ baru di kartumu", tombol Lihat), selain notifikasi komentar. Reaksi sendiri tidak dihitung.
+
 ## [0.1.4] - 2026-10-22
 
 Tanpa migrasi; jalankan `npm run build`.

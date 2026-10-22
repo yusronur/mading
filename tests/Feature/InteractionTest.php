@@ -144,4 +144,27 @@ class InteractionTest extends TestCase
         $this->assertFalse($count($this->budi, $this->post)['is_mine']);
         $this->assertSame(0, $count($this->budi, $this->post)['others_comments']);
     }
+
+    public function test_author_sees_others_reactions_count_and_flash_has_unique_id(): void
+    {
+        $find = fn (User $as) => collect($this->props($as)['posts'])->firstWhere('id', $this->post->id);
+
+        // Hati sendiri pada kartu sendiri tidak dihitung; hati orang lain dihitung
+        $this->actingAs($this->ani)->post(route('posts.react', [$this->board, $this->post]), ['value' => 1]);
+        $this->assertSame(0, $find($this->ani)['others_reactions']);
+        $this->actingAs($this->budi)->post(route('posts.react', [$this->board, $this->post]), ['value' => 1])->assertRedirect();
+        $this->actingAs($this->teacher)->post(route('posts.react', [$this->board, $this->post]), ['value' => 1]);
+        $this->assertSame(2, $find($this->ani)['others_reactions']);
+        $this->assertSame(0, $find($this->budi)['others_reactions']); // bukan miliknya
+
+        // Hati ditarik kembali: hitungan turun (tidak memicu notifikasi)
+        $this->actingAs($this->budi)->post(route('posts.react', [$this->board, $this->post]), ['value' => null]);
+        $this->assertSame(1, $find($this->ani)['others_reactions']);
+
+        // Flash membawa id unik per pesan (klien tidak menampilkan ulang pesan lama)
+        $this->actingAs($this->ani)->withSession(['success' => 'Kartu terkirim!'])->get(route('boards.show', $this->board))
+            ->assertInertia(fn ($p) => $p->where('flash.success', 'Kartu terkirim!')->whereType('flash.id', 'string'));
+        $this->flushSession();
+        $this->actingAs($this->ani)->get(route('boards.show', $this->board))->assertInertia(fn ($p) => $p->where('flash.id', null));
+    }
 }

@@ -38,15 +38,18 @@ watch(() => props.posts, (now, before) => {
     // Satu pengecualian: komentar BARU dari orang lain pada kartu milik sendiri.
     if (!before) return;
     const prev = new Map(before.map((p) => [p.id, p]));
-    const hit = now.filter((p) => {
+    const fresh = (key) => now.filter((p) => {
         const old = prev.get(p.id);
-        return old && p.is_mine && (p.others_comments ?? 0) > (old.others_comments ?? 0) && detailId.value !== p.id;
+        return old && p.is_mine && (p[key] ?? 0) > (old[key] ?? 0) && detailId.value !== p.id;
     });
-    if (hit.length) {
-        const first = hit[0].id;
-        toast(hit.length === 1 ? 'Komentar baru di kartumu' : `Komentar baru di ${hit.length} kartumu`, 'success', null,
-            { label: 'Lihat', run: () => (detailId.value = first) });
-    }
+    const comments = fresh('others_comments');
+    const reacts = fresh('others_reactions');
+    const reactNew = { like: '♥ baru', star: 'Bintang baru', vote: 'Suara baru', grade: 'Nilai baru' }[props.board.reaction] ?? 'Reaksi baru';
+    const first = (comments[0] ?? reacts[0])?.id;
+    if (!first) return;
+    const n = new Set([...comments, ...reacts].map((p) => p.id)).size;
+    const what = comments.length && reacts.length ? 'Komentar dan reaksi baru' : comments.length ? 'Komentar baru' : reactNew;
+    toast(`${what} di ${n === 1 ? 'kartumu' : n + ' kartumu'}`, 'success', null, { label: 'Lihat', run: () => (detailId.value = first) });
 });
 watch(() => props.sections, (v) => (cols.value = [...v]));
 
