@@ -208,4 +208,35 @@ class LiveQuizTest extends TestCase
                 && ! str_contains($payload, 'Soal') && ! str_contains($payload, '"b"');
         });
     }
+
+    public function test_abandoned_live_session_is_closed_so_students_are_not_stuck(): void
+    {
+        $s = $this->startLive();
+        $this->actingAs($this->ani)->get(route('live.play', $s));
+        $this->act($s, 'start')->assertOk();
+        $this->actingAs($this->ani)->getJson(route('live.state', $s))->assertOk();
+
+        // Guru meninggalkan kuis di tengah soal; siswa masih terlihat "lanjutkan mengerjakan"
+        $this->actingAs($this->ani)->get(route('student.dashboard'))->assertInertia(fn ($p) => $p->where('quizzes.0.mine', 'working')->where('quizzes.0.status', 'open'));
+
+        $this->travel(LiveQuiz::STALE_HOURS + 1)->hours();
+        $this->actingAs($this->ani)->get(route('student.dashboard'))->assertInertia(fn ($p) => $p->where('quizzes.0.mine', 'done')->where('quizzes.0.status', 'closed'));
+        $this->assertSame('podium', $this->state($this->ani, $s)['phase']);
+        $this->assertNotNull($this->inSchool($this->school, fn () => QuizSession::find($s->id)->closed_at));
+        $this->travelBack();
+    }
+
+    public function test_active_session_is_not_closed_and_command_closes_stale_ones(): void
+    {
+        $s = $this->startLive();
+        $this->actingAs($this->ani)->get(route('live.play', $s));
+        $this->act($s, 'start')->assertOk();
+        $this->travel(LiveQuiz::STALE_HOURS - 1)->hours();
+        $this->assertNotSame('podium', $this->state($this->ani, $s)['phase']);
+
+        $this->travel(LiveQuiz::STALE_HOURS + 1)->hours();
+        $this->artisan('madingo:close-stale-live')->expectsOutputToContain('1 kuis live ditutup')->assertSuccessful();
+        $this->assertSame('podium', $this->state($this->ani, $s)['phase']);
+        $this->travelBack();
+    }
 }

@@ -2,6 +2,12 @@
 
 Format mengikuti Blueprint Bab 17.2. Versi memakai SemVer (`0.x` selama Fase 0-3).
 
+## [0.2.0-alpha.10] - 2026-10-23
+
+### Diperbaiki
+- Kuis live yang ditinggalkan guru (tidak pernah ditekan Akhiri) kini ditutup otomatis setelah 3 jam tanpa aktivitas guru. Sebelumnya siswa yang membuka beranda masih melihat "Lanjutkan mengerjakan" dan terjebak di layar "Waktu habis!" tanpa jalan keluar. Penutupan terjadi saat siswa membuka beranda atau status kuis, dan lewat pekerjaan terjadwal tiap jam (`madingo:close-stale-live`).
+- Layar pemain kuis live kini punya tombol beranda (🏠) di header pada semua fase; percobaan tetap tersimpan.
+
 ## [0.2.0-alpha.9] - 2026-10-22
 
 ### Ditambahkan (Tahap 19: PWA dan notifikasi)

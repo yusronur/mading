@@ -195,6 +195,9 @@ class QuizReport
             ->orderByRaw('closes_at is null, closes_at asc')
             ->limit(30)->get();
 
+        // Kuis live yang ditinggalkan guru ditutup dulu agar tidak tampil sebagai "lanjutkan mengerjakan"
+        $live = app(LiveQuiz::class);
+        $sessions->filter->isLive()->each(fn (QuizSession $s) => $live->finishIfStale($s));
         $attempts = QuizAttempt::whereIn('session_id', $sessions->pluck('id'))->where('user_id', $user->id)->get()->groupBy('session_id');
 
         return $sessions->map(function (QuizSession $s) use ($attempts) {

@@ -1,7 +1,7 @@
 <script setup>
 import { refreshGamify } from '@/lib/gamify';
 import { computed, ref, watch } from 'vue';
-import { Head, router, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { applyTheme } from '@/lib/theme';
 import Flash from '@/Components/Flash.vue';
 import Btn from '@/Components/Btn.vue';
@@ -88,6 +88,8 @@ const leave = () => router.post(route('logout'));
     <div class="flex min-h-dvh flex-col bg-bg text-ink">
         <Flash />
         <header class="flex items-center gap-2 border-b border-line/60 px-4 py-2.5">
+            <!-- Jalan keluar selalu ada; percobaan tetap tersimpan dan bisa dilanjutkan dari beranda -->
+            <Link v-if="page.props.auth.user.role !== 'guest'" :href="route('home')" class="grid size-9 shrink-0 place-items-center rounded-full bg-surface2 text-lg" aria-label="Ke beranda" data-testid="live-home">🏠</Link>
             <span class="min-w-0 flex-1 truncate font-bold">{{ me.name }}</span>
             <span v-if="me.team" class="rounded-full px-2.5 py-0.5 text-xs font-bold text-black" :style="{ background: teamColor(me.team) }">Tim {{ me.team_name }}</span>
             <span class="rounded-full bg-surface2 px-3 py-0.5 font-mono text-sm font-bold" data-testid="my-score">{{ fmtScore(me.score) }}</span>

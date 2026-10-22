@@ -12,3 +12,4 @@ Schedule::command('madingo:notify release')->dailyAt('06:00');
 Schedule::command('madingo:notify due')->dailyAt(sprintf('%02d:00', config('notify.reminder_hour')));
 Schedule::command('madingo:notify digest')->dailyAt(sprintf('%02d:00', config('notify.digest_hour')));
 Schedule::command('madingo:notify prune')->dailyAt('03:15');
+Schedule::command('madingo:close-stale-live')->hourly();

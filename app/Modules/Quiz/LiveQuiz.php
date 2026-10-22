@@ -31,6 +31,9 @@ use Throwable;
  */
 class LiveQuiz
 {
+    /** Jam tanpa aktivitas guru sebelum kuis live ditutup otomatis. */
+    public const STALE_HOURS = 3;
+
     /** Jeda membaca soal sebelum pilihan jawaban dibuka. */
     public const READY_SECONDS = 3;
 
@@ -297,6 +300,9 @@ class LiveQuiz
      */
     public function tick(QuizSession $s): bool
     {
+        if ($this->finishIfStale($s)) {
+            return true;
+        }
         if (($s->live['phase'] ?? null) !== 'question') {
             return false;
         }
@@ -325,6 +331,33 @@ class LiveQuiz
         }
 
         return $changed;
+    }
+
+    /**
+     * Kuis live yang ditinggalkan guru (tidak pernah ditekan Akhiri, peramban ditutup, dsb.)
+     * ditutup otomatis setelah STALE_HOURS tanpa aktivitas guru, supaya siswa tidak terjebak
+     * di layar soal lama dan kuisnya masuk laporan.
+     */
+    public function finishIfStale(QuizSession $s): bool
+    {
+        if (! $s->isLive() || $s->closed_at || ! $s->updated_at || $s->updated_at->gt(now()->subHours(self::STALE_HOURS))) {
+            return false;
+        }
+
+        $done = DB::transaction(function () use ($s) {
+            $fresh = QuizSession::whereKey($s->id)->lockForUpdate()->first();
+            if (! $fresh || $fresh->closed_at || $fresh->updated_at->gt(now()->subHours(self::STALE_HOURS))) {
+                return false;
+            }
+            $this->finishLocked($fresh, $fresh->live);
+
+            return true;
+        });
+        if ($done) {
+            $s->refresh();
+        }
+
+        return $done;
     }
 
     private function openQuestion(QuizSession $s, array $live, int $index): array
