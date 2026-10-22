@@ -23,6 +23,9 @@ class TakeController extends Controller
     {
         $user = $request->user();
 
+        if ($session->isLive()) {
+            return redirect()->route('live.play', $session);
+        }
         if (! $user->isStudent() && ! $user->isGuest()) {
             return AssignmentController::authorizeAndRedirect($request, $session);
         }

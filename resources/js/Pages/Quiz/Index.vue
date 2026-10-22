@@ -9,6 +9,7 @@ import Modal from '@/Components/Modal.vue';
 import EmptyState from '@/Components/EmptyState.vue';
 import AssignDialog from '@/Components/Quiz/AssignDialog.vue';
 import QuizShareDialog from '@/Components/Quiz/QuizShareDialog.vue';
+import LiveStartDialog from '@/Components/Quiz/LiveStartDialog.vue';
 import { askConfirm } from '@/lib/confirm';
 import { fmtDateTime, untilText } from '@/lib/datetime';
 
@@ -19,6 +20,8 @@ const nf = useForm({ title: '' });
 const create = () => nf.post(route('quizzes.store'));
 
 const assigning = ref(null);
+const going = ref(null);
+const sessionHref = (s) => (s.live && s.live_phase !== 'podium' ? route('live.host', s.id) : route('assignments.show', s.id));
 const sharing = ref(null);
 const duplicate = (q) => router.post(route('quizzes.duplicate', q.id));
 const remove = async (q) => {
@@ -30,7 +33,7 @@ const statusLabel = { open: 'Berjalan', scheduled: 'Terjadwal', closed: 'Ditutup
 
 <template>
     <Head title="Kuis" />
-    <AppLayout title="Kuis mandiri 📝" wide>
+    <AppLayout title="Kuis 📝" wide>
         <template #actions>
             <Btn variant="soft" :href="route('banks.index')">📚 Bank soal</Btn>
             <Btn @click="newOpen = true">+ Kuis baru</Btn>
@@ -54,17 +57,25 @@ const statusLabel = { open: 'Berjalan', scheduled: 'Terjadwal', closed: 'Ditutup
                     </div>
                     <div class="flex shrink-0 gap-1">
                         <Btn size="sm" variant="soft" :href="route('quizzes.edit', q.id)">Ubah</Btn>
+                        <Btn size="sm" variant="soft" :disabled="!q.questions_count" @click="going = q">▶ Live</Btn>
                         <Btn size="sm" :disabled="!q.questions_count" @click="assigning = q">Tugaskan</Btn>
                     </div>
                 </div>
 
                 <ul v-if="q.sessions.length" class="mt-4 space-y-2">
                     <li v-for="s in q.sessions" :key="s.id">
-                        <Link :href="route('assignments.show', s.id)" class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-surface2/70 px-3 py-2 hover:bg-surface2">
+                        <Link :href="sessionHref(s)" class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-surface2/70 px-3 py-2 hover:bg-surface2">
                             <span class="font-bold">{{ s.class_name ?? '–' }}</span>
-                            <Badge :tone="statusTone[s.status]">{{ statusLabel[s.status] }}</Badge>
-                            <span class="text-sm text-muted">{{ s.done }}/{{ s.students }} selesai</span>
-                            <span class="ml-auto text-xs text-muted">{{ s.status === 'open' ? 'tenggat ' + untilText(s.closes_at) : fmtDateTime(s.closes_at) }} </span>
+                            <template v-if="s.live">
+                                <Badge :tone="s.live_phase === 'podium' ? 'neutral' : 'success'">{{ s.live_phase === 'podium' ? 'Selesai' : s.live_phase === 'lobby' ? 'Lobi' : 'Berlangsung' }}</Badge>
+                                <span class="text-sm text-muted">{{ s.done }} pemain</span>
+                                <span class="ml-auto text-xs text-muted">{{ s.live_phase === 'podium' ? 'lihat laporan' : 'buka layar host' }}</span>
+                            </template>
+                            <template v-else>
+                                <Badge :tone="statusTone[s.status]">{{ statusLabel[s.status] }}</Badge>
+                                <span class="text-sm text-muted">{{ s.done }}/{{ s.students }} selesai</span>
+                                <span class="ml-auto text-xs text-muted">{{ s.status === 'open' ? 'tenggat ' + untilText(s.closes_at) : fmtDateTime(s.closes_at) }} </span>
+                            </template>
                             <button type="button" class="rounded-lg border border-dashed border-line px-2 py-0.5 font-mono text-sm font-bold tracking-widest hover:border-accent" title="Bagikan kode dan QR" @click.prevent.stop="sharing = s">{{ s.code }} 📤</button>
                         </Link>
                     </li>
@@ -85,6 +96,7 @@ const statusLabel = { open: 'Berjalan', scheduled: 'Terjadwal', closed: 'Ditutup
             </form>
         </Modal>
         <QuizShareDialog :show="!!sharing" :session="sharing" @close="sharing = null" />
+        <LiveStartDialog :show="!!going" :quiz="going" @close="going = null" />
         <AssignDialog :show="!!assigning" :quiz="assigning" :classes="classes" @close="assigning = null" />
     </AppLayout>
 </template>

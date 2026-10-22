@@ -15,14 +15,14 @@ class ConfineGuests
 {
     private const ALLOWED = [
         'take.show', 'take.start', 'take.attempt', 'take.answer', 'take.focus', 'take.submit', 'take.result',
-        'attachments.show', 'login.qr', 'home', 'logout', 'guest.join', 'guest.store',
+        'attachments.show', 'login.qr', 'live.play', 'live.state', 'live.answer', 'home', 'logout', 'guest.join', 'guest.store',
     ];
 
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
 
-        if ($user?->isGuest() && ! $request->routeIs(self::ALLOWED)) {
+        if ($user?->isGuest() && ! $request->routeIs(self::ALLOWED) && ! $request->is('broadcasting/auth')) {
             abort_if($request->expectsJson(), 403, 'Tamu hanya bisa mengerjakan kuis.');
 
             return redirect()->route('home');

@@ -9,7 +9,7 @@ return [
     */
     'brand' => env('APP_NAME', 'Madingo'),
 
-    'version' => '0.1.5',
+    'version' => '0.2.0-alpha.1',
 
     'tenant' => [
         // single | domain
@@ -33,6 +33,15 @@ return [
     ],
 
     // Bawaan per sekolah; admin bisa mengubah di Pengaturan (school_settings.settings)
+    // Alamat WebSocket (Reverb) yang dibuka peramban. Bisa beda dari REVERB_HOST/PORT
+    // (alamat yang dipakai Laravel untuk mengirim siaran), mis. lewat proxy :443.
+    'realtime' => [
+        'host' => env('REVERB_CLIENT_HOST', env('REVERB_HOST')),
+        'port' => (int) env('REVERB_CLIENT_PORT', env('REVERB_PORT', 443)),
+        'scheme' => env('REVERB_CLIENT_SCHEME', env('REVERB_SCHEME', 'https')),
+        'path' => env('REVERB_CLIENT_PATH', ''),
+    ],
+
     'quiz' => [
         // Batas tamu per kuis publik (Kahoot-style); kuis lebih besar dipecah jadi beberapa tugas
         'max_guests' => (int) env('QUIZ_MAX_GUESTS', 300),

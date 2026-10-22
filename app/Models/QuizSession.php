@@ -16,7 +16,7 @@ class QuizSession extends Model
     private const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
     protected $fillable = [
-        'school_id', 'quiz_id', 'host_id', 'class_id', 'mode', 'code', 'title', 'opens_at', 'closes_at', 'closed_at', 'settings', 'questions',
+        'school_id', 'quiz_id', 'host_id', 'class_id', 'mode', 'code', 'title', 'opens_at', 'closes_at', 'closed_at', 'settings', 'questions', 'live',
     ];
 
     protected $casts = [
@@ -25,6 +25,7 @@ class QuizSession extends Model
         'closed_at' => 'datetime',
         'settings' => 'array',
         'questions' => 'array',
+        'live' => 'array',
     ];
 
     protected static function booted(): void
@@ -63,6 +64,11 @@ class QuizSession extends Model
     public function attempts(): HasMany
     {
         return $this->hasMany(QuizAttempt::class, 'session_id');
+    }
+
+    public function isLive(): bool
+    {
+        return $this->mode === 'live';
     }
 
     public function isOpen(): bool

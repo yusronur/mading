@@ -37,3 +37,10 @@ Fase: F1 / perbaikan
 Dikerjakan: perbaikan error laporan kuis (0.1.2), kuis publik dengan kode, jalur tamu kode + nama, durasi pengerjaan wajib per percobaan.
 Keputusan: ADR-018.
 Hasil: 123 tes lulus; alur tamu diuji di peramban HP (kunci halaman, timer 15 menit sesuai durasi).
+
+## 2026-10-22 (Kamis) - Fase 2 tahap 13: kuis live (0.2.0-alpha.1)
+Fase: F2 / tahap 13
+Dikerjakan: kuis live (lobi, soal, pembahasan, peringkat, podium), skor kecepatan, mode tim, tamu, keluarkan pemain, sambung ulang, Laravel Reverb + Echo dengan cadangan pengecekan berkala.
+Keputusan: ADR-019 (status di PostgreSQL), ADR-020 (Reverb hanya sinyal).
+Hasil: 128 tes lulus; uji peramban host + 2 siswa + tamu dengan Reverb nyata (soal sampai ke HP 0,3-0,8 dtk), dan tanpa Reverb (berkala 2,3 dtk, muat ulang di tengah soal aman, soal tertutup otomatis saat waktu habis).
+Berikutnya: tahap 14 (aktivitas live di papan + mode proyektor), uji coba kuis live di kelas.

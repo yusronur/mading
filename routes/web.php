@@ -24,6 +24,7 @@ use App\Modules\Profile\Controllers\ProfileController;
 use App\Modules\Quiz\Controllers\AssignmentController;
 use App\Modules\Quiz\Controllers\QuestionBankController;
 use App\Modules\Quiz\Controllers\GuestJoinController;
+use App\Modules\Quiz\Controllers\LiveController;
 use App\Modules\Quiz\Controllers\QuizController;
 use App\Modules\Quiz\Controllers\TakeController;
 use App\Modules\Quiz\Controllers\QuestionController;
@@ -141,6 +142,9 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         Route::put('/kuis/{quiz}', [QuizController::class, 'update'])->name('quizzes.update');
         Route::delete('/kuis/{quiz}', [QuizController::class, 'destroy'])->name('quizzes.destroy');
         Route::post('/kuis/{quiz}/duplikat', [QuizController::class, 'duplicate'])->name('quizzes.duplicate');
+        Route::post('/kuis/{quiz}/live', [LiveController::class, 'store'])->name('live.store');
+        Route::get('/live/{session}/host', [LiveController::class, 'host'])->name('live.host');
+        Route::post('/live/{session}/aksi', [LiveController::class, 'action'])->middleware('throttle:live')->name('live.action');
         Route::post('/kuis/{quiz}/tugaskan', [AssignmentController::class, 'store'])->name('assignments.store');
         Route::get('/tugas-kuis/{session}', [AssignmentController::class, 'show'])->name('assignments.show');
         Route::get('/tugas-kuis/{session}/progres', [AssignmentController::class, 'progress'])->middleware('throttle:sync')->name('assignments.progress');
@@ -150,6 +154,11 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         Route::get('/tugas-kuis/{session}/jawaban/{attempt}', [AssignmentController::class, 'attempt'])->name('assignments.attempt');
         Route::post('/tugas-kuis/{session}/ulang/{user}', [AssignmentController::class, 'reset'])->name('assignments.reset');
     });
+
+    // Kuis live: pemain (siswa/tamu) dan status bersama
+    Route::get('/live/{session}', [LiveController::class, 'play'])->name('live.play');
+    Route::get('/live/{session}/status', [LiveController::class, 'state'])->middleware('throttle:live')->name('live.state');
+    Route::post('/live/{session}/jawab', [LiveController::class, 'answer'])->middleware('throttle:quiz-answers')->name('live.answer');
 
     // Siswa mengerjakan kuis
     Route::get('/kerjakan/{session}', [TakeController::class, 'show'])->name('take.show');

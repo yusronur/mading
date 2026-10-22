@@ -57,7 +57,7 @@ class GuestJoinController extends Controller
         $current = $request->user();
         if ($current?->isGuest()) {
             if (($current->profile['guest_session'] ?? null) === $session->id) {
-                return redirect()->route('take.show', $session); // lanjutkan, tidak membuat tamu baru
+                return redirect()->route($session->isLive() ? 'live.play' : 'take.show', $session); // lanjutkan, tidak membuat tamu baru
             }
             $this->logout($request);
         }
@@ -87,7 +87,7 @@ class GuestJoinController extends Controller
         $request->session()->regenerate();
         AuditLog::record('quiz.guest_joined', $guest, ['session' => $session->title]);
 
-        return redirect()->route('take.show', $session);
+        return redirect()->route($session->isLive() ? 'live.play' : 'take.show', $session);
     }
 
     private function cleanName(string $name): string

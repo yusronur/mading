@@ -128,3 +128,28 @@ tanpa jalur kode kedua. Batas: 60 permintaan/menit/IP dan 300 tamu per kuis.
 
 **Konsekuensi.** Tamu yang menghapus cookie bisa masuk lagi dengan nama baru (kesempatan per-tamu tidak mengikat orang);
 cocok untuk kuis cepat, bukan ujian. Akun yang tidak dipakai dibersihkan harian.
+
+## ADR-019: status kuis live di PostgreSQL, bukan Redis
+
+**Keputusan.** Fase permainan (lobi, soal, pembahasan, peringkat, podium), nomor soal, batas waktu, dan versi
+disimpan di `quiz_sessions.live` (jsonb). Perpindahan fase memakai transaksi + kunci baris. Pemain adalah
+`quiz_attempts` (dengan `team`), jawaban di `quiz_answers` (dengan `live_score`, `elapsed_ms`). Soal yang lewat
+batas waktu ditutup secara malas oleh permintaan status/jawaban berikutnya, tanpa pekerja antrean.
+
+**Alasan.** Skala satu sekolah (puluhan pemain per sesi) jauh di bawah batas PostgreSQL; Redis belum tersedia di
+XAMPP dan menambah satu layanan lagi di aaPanel. Laporan, analisis butir, dan ekspor kuis mandiri langsung
+terpakai tanpa sinkronisasi batch. Mengubah ADR-005 untuk Fase 2; Redis ditinjau ulang saat go public.
+
+**Konsekuensi.** Setiap jawaban = satu INSERT + dua COUNT. Uji beban (k6) di akhir Fase 2 menentukan apakah
+perlu Redis.
+
+## ADR-020: Reverb hanya menyiarkan sinyal; status selalu lewat HTTP
+
+**Keputusan.** Laravel Reverb (Pusher protocol) di kanal privat `school.{s}.live.{id}`. Siaran berisi `{kind, v}`
+saja (`state`, `players`, `progress` + hitungan). Klien yang menerima `state` mengambil `GET /live/{id}/status`;
+kunci jawaban hanya ada di respons setelah soal ditutup. Jawaban dikirim lewat HTTP (validasi + rate limit
+yang sama). Client events dimatikan (`accept_client_events_from=none`). Bila siaran gagal, siaran dilewati 30
+detik dan klien memakai pengecekan berkala (2 detik bila WebSocket putus, 12 detik bila tersambung).
+
+**Konsekuensi.** Tidak ada data sensitif yang lewat WebSocket; Reverb mati tidak menghentikan kuis. Sinyal
+`progress` tidak memicu pengambilan status oleh pemain, jadi 40 jawaban tidak menjadi 1.600 permintaan.

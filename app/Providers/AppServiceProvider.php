@@ -67,6 +67,7 @@ class AppServiceProvider extends ServiceProvider
         // Pemeriksaan perubahan papan: ringan, tapi sering (tiap 2-15 detik per tab)
         RateLimiter::for('sync', fn (Request $request) => Limit::perMinute(90)->by($request->user()?->id ?: $request->ip()));
         RateLimiter::for('uploads', fn (Request $request) => Limit::perMinute(40)->by($request->user()?->id ?: $request->ip()));
+        RateLimiter::for('live', fn (Request $request) => Limit::perMinute(150)->by($request->user()?->id ?: $request->ip()));
         RateLimiter::for('guest-join', fn (Request $request) => Limit::perMinute(60)->by($request->ip()));
         RateLimiter::for('qr-login', fn (Request $request) => Limit::perMinute(20)->by($request->ip()));
         RateLimiter::for('quiz-answers', fn (Request $request) => Limit::perMinute(240)->by($request->user()?->id ?: $request->ip()));

@@ -203,8 +203,10 @@ class AssignmentController extends Controller
             'title' => $session->title,
             'code' => $session->code,
             'join_url' => $this->joinUrl($session),
+            'has_class' => (bool) $session->class_id,
+            'live' => $session->isLive(),
             'allow_guests' => (bool) ($session->settings['allow_guests'] ?? false),
-            'class_name' => $session->schoolClass?->name ?? 'Publik (kode)',
+            'class_name' => $session->schoolClass?->name ?? ($session->isLive() ? 'Kuis live' : 'Publik (kode)'),
             'opens_at' => $session->opens_at?->toIso8601String(),
             'closes_at' => $session->closes_at?->toIso8601String(),
             'status' => $session->status(),
@@ -226,7 +228,7 @@ class AssignmentController extends Controller
     {
         self::authorizeSession($request, $session);
 
-        return redirect()->route('assignments.show', $session);
+        return redirect()->route($session->isLive() && ($session->live['phase'] ?? '') !== 'podium' ? 'live.host' : 'assignments.show', $session);
     }
 
     public static function authorizeSession(Request $request, QuizSession $session): void

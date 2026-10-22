@@ -47,6 +47,14 @@ class HandleInertiaRequests extends Middleware
                     'is_homeroom' => $user->isTeacher() && $user->homeroomClassIds() !== [],
                 ] : null,
             ],
+            // Konfigurasi WebSocket untuk Echo; null = pakai pengecekan berkala saja
+            'realtime' => fn () => $user && config('broadcasting.default') === 'reverb' && config('broadcasting.connections.reverb.key') ? [
+                'key' => config('broadcasting.connections.reverb.key'),
+                'host' => config('madingo.realtime.host') ?: $request->getHost(),
+                'port' => config('madingo.realtime.port'),
+                'scheme' => config('madingo.realtime.scheme'),
+                'path' => config('madingo.realtime.path'),
+            ] : null,
             'theme' => fn () => app(ThemeResolver::class)->resolve($user, $board instanceof Board ? $board : null),
             // `id` unik per pesan: sinkron papan (partial reload) tidak mengirim ulang flash,
             // dan klien mengingat props lama; id mencegah pesan lama muncul lagi sebagai toast

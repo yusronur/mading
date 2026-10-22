@@ -104,7 +104,7 @@ const sessionStatus = { open: ['success', 'Berjalan'], scheduled: ['warning', 'T
     <AppLayout wide :back="{ href: route('quizzes.index'), label: 'Kuis' }">
         <section class="mb-5 flex flex-wrap items-start justify-between gap-4">
             <div class="min-w-0">
-                <p class="text-sm font-bold text-muted">{{ s.class_name === "Publik (kode)" ? "" : "Rombel " }}{{ s.class_name }} · {{ s.questions }} soal · {{ s.max_score }} poin</p>
+                <p class="text-sm font-bold text-muted">{{ s.has_class ? "Rombel " : "" }}{{ s.class_name }} · {{ s.questions }} soal · {{ s.max_score }} poin</p>
                 <h1 class="text-3xl font-bold">{{ s.title }}</h1>
                 <p class="mt-1 flex flex-wrap items-center gap-2 text-sm">
                     <Badge :tone="sessionStatus[s.status][0]">{{ sessionStatus[s.status][1] }}</Badge>
@@ -164,7 +164,7 @@ const sessionStatus = { open: ['success', 'Berjalan'], scheduled: ['warning', 'T
                                 <button v-if="row.attempts" class="rounded-lg px-2 py-1.5 text-xs font-bold text-muted hover:text-danger" @click="reset(row)">Ulang</button>
                             </div></td>
                         </tr>
-                        <tr v-if="!rows.length"><td colspan="8" class="px-4 py-10 text-center text-muted">{{ s.class_name === "Publik (kode)" ? "Belum ada siswa yang memulai. Bagikan kode kuisnya." : "Rombel ini belum punya siswa." }}</td></tr>
+                        <tr v-if="!rows.length"><td colspan="8" class="px-4 py-10 text-center text-muted">{{ s.has_class ? "Rombel ini belum punya siswa." : "Belum ada siswa yang memulai. Bagikan kode kuisnya." }}</td></tr>
                     </tbody>
                 </table>
             </div>

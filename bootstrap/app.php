@@ -19,6 +19,8 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    // Otorisasi kanal WebSocket (Reverb) lewat sesi web biasa: /broadcasting/auth
+    ->withBroadcasting(__DIR__.'/../routes/channels.php')
     ->withMiddleware(function (Middleware $middleware): void {
         // Sekolah harus diketahui sebelum sesi dan pengguna dibaca (ADR-004)
         $middleware->web(prepend: [ResolveTenant::class]);

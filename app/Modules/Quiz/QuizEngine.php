@@ -264,14 +264,14 @@ class QuizEngine
         return new Question(['type' => $q['type'], 'data' => $q['data']]);
     }
 
-    private function mediaCards(QuizSession $session): array
+    public function mediaCards(QuizSession $session): array
     {
         $ids = collect($session->questions)->pluck('media')->flatten()->filter()->all();
 
         return $ids ? Attachment::whereIn('id', $ids)->get()->mapWithKeys(fn (Attachment $a) => [$a->id => $a->toCard()])->all() : [];
     }
 
-    private function cleanResponse(array $q, mixed $r): mixed
+    public function cleanResponse(array $q, mixed $r): mixed
     {
         $ids = array_column($q['data']['options'] ?? [], 'id');
         $bad = fn () => throw new RuntimeException('Jawaban tidak valid.');

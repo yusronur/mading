@@ -13,7 +13,7 @@ class QuizAttempt extends Model
     use BelongsToSchool, HasUuids;
 
     protected $fillable = [
-        'school_id', 'session_id', 'user_id', 'attempt_no', 'seed', 'question_order', 'started_at', 'deadline_at', 'submitted_at',
+        'school_id', 'session_id', 'user_id', 'attempt_no', 'team', 'seed', 'question_order', 'started_at', 'deadline_at', 'submitted_at',
         'score', 'max_score', 'focus_lost',
     ];
 
@@ -26,6 +26,7 @@ class QuizAttempt extends Model
         'max_score' => 'integer',
         'focus_lost' => 'integer',
         'seed' => 'integer',
+        'team' => 'integer',
     ];
 
     public function session(): BelongsTo

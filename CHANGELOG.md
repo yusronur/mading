@@ -2,6 +2,29 @@
 
 Format mengikuti Blueprint Bab 17.2. Versi memakai SemVer (`0.x` selama Fase 0-3).
 
+## [0.2.0-alpha.1] - 2026-10-22 (Fase 2, tahap 13: kuis live)
+
+Pembaruan di laptop/server:
+1. `composer update laravel/reverb -W` (paket baru: Laravel Reverb), lalu `npm install`.
+2. `php artisan migrate` (kolom `quiz_sessions.live`, `quiz_attempts.team`, `quiz_answers.live_score/elapsed_ms`).
+3. Isi variabel `REVERB_*` dan `BROADCAST_CONNECTION=reverb` di `.env` (contoh di `.env.example`), jalankan
+   `php artisan reverb:start` (lokal) atau lewat Supervisor (server, lihat `docs/DEPLOY-aapanel.md`), lalu `npm run build`.
+   Tanpa Reverb kuis live tetap berjalan dengan pengecekan berkala.
+
+- Kuis live (QZ-10): tombol "▶ Live" di daftar kuis. Layar proyektor: lobi dengan kode, QR, dan nama pemain;
+  soal dengan hitung mundur dan jumlah yang sudah menjawab; distribusi jawaban + jawaban benar; papan
+  peringkat; podium beranimasi dengan konfeti.
+- Layar pemain di HP: tombol jawaban besar berbentuk (bintang, bulan, petir, hati, daun, tetes), jeda baca 3 detik,
+  hasil per soal ("Mantap!", skor, peringkat). Mendukung pilihan ganda, benar/salah, kompleks, isian, menjodohkan.
+- Skor live = poin x ketepatan x (1 - 0,5 x waktu jawab/batas waktu); nilai 0-100 tetap dari ketepatan dan masuk
+  laporan kuis, analisis butir, dan ekspor Excel yang sudah ada.
+- Papan peringkat dan podium (QZ-11), mode tim 2-4 tim dibagi rata otomatis, skor tim = rata-rata anggota (QZ-12).
+- Sambung ulang otomatis: muat ulang/terputus tidak kehilangan jawaban; bila WebSocket mati, layar beralih ke
+  pengecekan berkala tiap 2 detik (QZ-13).
+- Tamu dengan nama (AUTH-07) bila diizinkan; guru bisa mengeluarkan pemain dari lobi (tidak bisa masuk lagi).
+- Real-time lewat Laravel Reverb: kanal privat per sekolah, isi siaran hanya sinyal perubahan (tanpa soal/kunci),
+  pemain tidak bisa mengirim event ke pemain lain.
+
 ## [0.1.5] - 2026-10-22
 
 Tanpa migrasi; jalankan `npm run build`.
