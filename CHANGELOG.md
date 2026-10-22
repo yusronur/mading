@@ -2,6 +2,18 @@
 
 Format mengikuti Blueprint Bab 17.2. Versi memakai SemVer (`0.x` selama Fase 0-3).
 
+## [0.2.0-alpha.11] - 2026-10-23
+
+### Diperbaiki
+- Lonceng notifikasi kini realtime: server mengirim sinyal ke kanal pribadi pengguna (Reverb) sehingga angka langsung naik tanpa refresh. Bila WebSocket tidak tersambung, dicek tiap 20 detik. Langganan tidak lagi dibuat ulang setiap pindah halaman.
+
+### Ditambahkan
+- Saran pasang aplikasi berupa banner kecil yang jarang muncul (kunjungan ke-3, sekali per sesi, jeda 14 hari, berhenti setelah ditutup 3 kali) dengan tombol tutup.
+- Tombol "Pasang aplikasi" di menu profil (di atas Keluar); di iPhone/iPad membuka petunjuk langkah demi langkah.
+
+### Diubah
+- Halaman login: "Ikut kuis tanpa akun" kini tombol besar berwarna lain tepat di bawah tombol Masuk, dengan keterangan "cukup masukkan kode kuis".
+
 ## [0.2.0-alpha.10] - 2026-10-23
 
 ### Diperbaiki

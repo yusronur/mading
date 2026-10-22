@@ -469,4 +469,31 @@ class NotifyTest extends TestCase
         config(['notify.vapid.public' => null, 'notify.vapid.private' => null]);
         $this->artisan('madingo:vapid')->expectsOutputToContain('VAPID_PUBLIC_KEY=')->assertSuccessful();
     }
+
+    public function test_new_notification_signals_only_the_owners_bell_channel(): void
+    {
+        config(['broadcasting.default' => 'reverb']);
+        \Illuminate\Support\Facades\Event::fake([\App\Events\NotificationsChanged::class]);
+        $this->assign();
+
+        \Illuminate\Support\Facades\Event::assertDispatched(\App\Events\NotificationsChanged::class, fn ($e) => $e->broadcastOn()->name === "private-school.{$this->school->id}.user.{$this->ani->id}"
+            && $e->broadcastWith() === ['kind' => 'notify']);
+        \Illuminate\Support\Facades\Event::assertNotDispatched(\App\Events\NotificationsChanged::class, fn ($e) => $e->userId === $this->outsider->id);
+
+        // Props bersama memberi nama kanal milik pengguna itu sendiri
+        $page = $this->actingAs($this->ani)->get(route('student.dashboard'));
+        $this->assertSame("school.{$this->school->id}.user.{$this->ani->id}", $page->viewData('page')['props']['notify']['channel']);
+    }
+
+    public function test_bell_channel_authorization_is_owner_only(): void
+    {
+        $sid = $this->school->id;
+        $this->assertTrue(\App\Events\NotificationsChanged::authorize($this->ani, $sid, $this->ani->id));
+        $this->assertFalse(\App\Events\NotificationsChanged::authorize($this->budi, $sid, $this->ani->id));
+        $this->assertFalse(\App\Events\NotificationsChanged::authorize($this->teacher, $sid, $this->ani->id));
+        $this->assertFalse(\App\Events\NotificationsChanged::authorize($this->ani, 'other-school', $this->ani->id));
+
+        // Kanal terdaftar di Broadcast
+        $this->assertStringContainsString('NotificationsChanged::authorize', file_get_contents(base_path('routes/channels.php')));
+    }
 }

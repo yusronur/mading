@@ -63,6 +63,7 @@ class HandleInertiaRequests extends Middleware
             'notify' => fn () => $user && $school && $user->role !== User::ROLE_GUEST
                 ? [
                     'unread' => app(\App\Modules\Notify\Notify::class)->unread($user),
+                    'channel' => \App\Events\NotificationsChanged::channel($user->school_id, $user->id),
                     'key' => app(\App\Modules\Notify\Notify::class)->pushAvailable() ? config('notify.vapid.public') : null,
                 ] : null,
             'theme' => fn () => app(ThemeResolver::class)->resolve($user, $board instanceof Board ? $board : null),

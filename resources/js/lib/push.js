@@ -1,4 +1,4 @@
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { postJson } from '@/lib/http';
 
 // PWA dan Web Push di sisi peramban. Semua fungsi aman dipanggil di peramban tanpa dukungan.
@@ -76,4 +76,14 @@ export async function syncDevice(vapidKey) {
     if (!vapidKey || !pushSupported() || Notification.permission !== 'granted') return;
     const sub = await currentSubscription();
     if (sub) postJson(route('push.subscribe'), sub.toJSON()).catch(() => {});
+}
+
+// Pemasangan aplikasi: tersedia bila peramban menawarkan (Android/laptop) atau di iPhone/iPad (petunjuk manual)
+export const installable = computed(() => !installed.value && !isStandalone() && (!!installEvent.value || isIOS()));
+export const iosHelp = ref(false);
+
+export async function installApp() {
+    if (installEvent.value) return promptInstall();
+    if (isIOS()) iosHelp.value = true;
+    return false;
 }

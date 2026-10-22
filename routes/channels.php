@@ -28,3 +28,8 @@ Broadcast::channel('school.{schoolId}.board.{boardId}', function (User $user, st
 
     return $board !== null && $user->can('view', $board);
 });
+
+// Lonceng notifikasi: hanya pemiliknya yang boleh mendengarkan
+Broadcast::channel('school.{schoolId}.user.{userId}', function (User $user, string $schoolId, string $userId) {
+    return \App\Events\NotificationsChanged::authorize($user, $schoolId, $userId);
+});

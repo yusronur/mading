@@ -76,6 +76,7 @@ class Notify
         $n = $this->create($user, $kind, $title, $body, $url, $dedupe);
         if ($n) {
             $this->deliver($n, $user, $force);
+            $this->signal($user);
         }
 
         return $n;
@@ -90,6 +91,7 @@ class Notify
 
         if ($row) {
             $row->update(['title' => $title, 'body' => $body, 'url' => $url, 'count' => $count, 'updated_at' => now()]);
+            $this->signal($user);
 
             return $row;
         }
@@ -97,7 +99,16 @@ class Notify
         // kunci lama yang sudah dibaca dilepas supaya aktivitas baru muncul lagi
         AppNotification::where('user_id', $user->id)->where('dedupe_key', $key)->whereNotNull('read_at')->update(['dedupe_key' => null]);
 
-        return $this->create($user, $kind, $title, $body, $url, $key) ?? $row;
+        $n = $this->create($user, $kind, $title, $body, $url, $key) ?? $row;
+        $this->signal($user);
+
+        return $n;
+    }
+
+    /** Beri tahu lonceng yang sedang terbuka agar angkanya langsung naik (tanpa isi notifikasi). */
+    private function signal(User $user): void
+    {
+        \App\Core\Realtime\Signal::send(new \App\Events\NotificationsChanged($user->school_id, $user->id));
     }
 
     private function create(User $user, string $kind, string $title, ?string $body, ?string $url, ?string $dedupe): ?AppNotification

@@ -6,7 +6,10 @@ import ConfirmDialog from '@/Components/ConfirmDialog.vue';
 import Avatar from '@/Components/Avatar.vue';
 import RewardToaster from '@/Components/Gamify/RewardToaster.vue';
 import Bell from '@/Components/Notify/Bell.vue';
-import { syncDevice, disablePush } from '@/lib/push';
+import InstallBanner from '@/Components/Notify/InstallBanner.vue';
+import Modal from '@/Components/Modal.vue';
+import Btn from '@/Components/Btn.vue';
+import { syncDevice, disablePush, installable, installApp, iosHelp } from '@/lib/push';
 import { applyTheme } from '@/lib/theme';
 
 // back: { href, label } menampilkan "← Kembali ke {label}" di atas halaman anak
@@ -79,6 +82,16 @@ onMounted(() => { if (user.value && user.value.role !== 'guest') syncDevice(page
         <Flash />
         <ConfirmDialog />
         <RewardToaster v-if="gamify" />
+        <InstallBanner v-if="user && user.role !== 'guest'" />
+        <Modal :show="iosHelp" title="Pasang di iPhone / iPad" @close="iosHelp = false">
+            <ol class="list-decimal space-y-2 pl-5 font-semibold">
+                <li>Buka Madingo di <b>Safari</b>.</li>
+                <li>Ketuk tombol <b>Bagikan</b> (kotak dengan panah ke atas) di bagian bawah layar.</li>
+                <li>Pilih <b>Tambahkan ke Layar Utama</b>, lalu ketuk <b>Tambah</b>.</li>
+                <li>Buka Madingo dari ikon baru itu. Notifikasi bisa diaktifkan dari menu 🔔.</li>
+            </ol>
+            <Btn class="mt-5" block @click="iosHelp = false">Mengerti</Btn>
+        </Modal>
 
         <header class="sticky top-0 z-30 border-b border-line/70 bg-bg/80 backdrop-blur-md">
             <div class="mx-auto flex h-16 items-center gap-3 px-4" :class="wide ? 'max-w-7xl' : 'max-w-5xl'">
@@ -115,6 +128,7 @@ onMounted(() => { if (user.value && user.value.role !== 'guest') syncDevice(page
                             <Link :href="route('profile.edit')" class="block rounded-lg px-3 py-2 font-semibold hover:bg-surface2">🎨 Tampilan & profil</Link>
                             <Link :href="route('password.change')" class="block rounded-lg px-3 py-2 font-semibold hover:bg-surface2">🔑 Ganti sandi</Link>
                         </template>
+                        <button v-if="installable && user?.role !== 'guest'" class="block w-full rounded-lg px-3 py-2 text-left font-semibold hover:bg-surface2" data-testid="menu-install" @click="installApp">⬇️ Pasang aplikasi</button>
                         <button class="block w-full rounded-lg px-3 py-2 text-left font-semibold text-danger hover:bg-surface2" @click="logout">Keluar</button>
                     </div>
                 </div>

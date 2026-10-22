@@ -29,10 +29,16 @@ const submit = () => form.post(route('login.store'), { onFinish: () => form.rese
                 Tetap masuk di perangkat ini (30 hari)
             </label>
             <Btn type="submit" size="lg" block :loading="form.processing">Masuk 🚀</Btn>
+            <!-- Jalan masuk terpisah untuk yang hanya punya kode kuis; sengaja besar dan berbeda warna -->
+            <div class="flex items-center gap-3 text-xs font-bold text-muted uppercase"><span class="h-px flex-1 bg-line"></span>atau<span class="h-px flex-1 bg-line"></span></div>
+            <Link :href="route('guest.join')" data-testid="guest-join"
+                class="flex h-14 w-full items-center justify-center gap-2 rounded-[calc(var(--m-radius)*0.7)] border-2 border-accent2 bg-accent2/20 px-5 text-center font-display text-lg leading-tight font-semibold text-ink transition hover:bg-accent2/30 active:scale-[0.97]">
+                🎯 Ikut kuis tanpa akun
+            </Link>
+            <p class="-mt-2 text-center text-sm text-muted">Cukup masukkan kode kuis dari gurumu, tanpa perlu login.</p>
             <p v-if="reset_enabled" class="text-center text-sm text-muted">Lupa sandi? <Link :href="route('password.forgot')" class="font-bold text-ink underline" data-testid="forgot-link">Reset lewat email</Link>, atau minta wali kelas/admin.</p>
             <p v-else class="text-center text-sm text-muted">Lupa sandi? Minta wali kelas atau admin sekolah untuk mereset.</p>
             <p class="rounded-xl bg-surface2 px-3 py-2 text-center text-sm font-semibold">📱 Punya kartu QR? Pindai saja dengan kamera HP, langsung masuk.</p>
-            <p class="text-center text-sm font-semibold">Dapat kode kuis dari guru? <Link :href="route('guest.join')" class="font-bold text-ink underline">Ikut kuis tanpa akun</Link></p>
         </form>
     </GuestLayout>
 </template>

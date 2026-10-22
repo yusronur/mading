@@ -1,29 +1,20 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { getJson, postJson } from '@/lib/http';
+import { postJson } from '@/lib/http';
+import { items, load, startNotify, unread } from '@/lib/notify';
 
-// Lonceng pusat notifikasi. Angka belum dibaca ikut di setiap navigasi (props bersama),
-// ditambah pengecekan tiap menit saat halaman terlihat. Tanpa WebSocket.
+// Lonceng pusat notifikasi. Angka naik langsung lewat sinyal WebSocket (Reverb); bila WebSocket
+// tidak tersambung, dicek berkala. Angka dari server juga ikut di setiap navigasi (props bersama).
 const page = usePage();
-const unread = ref(page.props.notify?.unread ?? 0);
 const open = ref(false);
-const items = ref([]);
 const loading = ref(false);
 const root = ref(null);
-let timer = null;
 
+unread.value = page.props.notify?.unread ?? unread.value;
 watch(() => page.props.notify?.unread, (n) => { if (n !== undefined) unread.value = n; });
 
 const badge = computed(() => (unread.value > 99 ? '99+' : unread.value));
-
-const load = async () => {
-    try {
-        const d = await getJson(route('notifications.summary'));
-        unread.value = d.unread;
-        items.value = d.items;
-    } catch (e) { /* diam: lonceng tidak boleh mengganggu halaman */ }
-};
 
 const toggle = async () => {
     open.value = !open.value;
@@ -60,19 +51,15 @@ const ago = (iso) => {
 
 const onDoc = (e) => { if (open.value && root.value && !root.value.contains(e.target)) open.value = false; };
 const onKey = (e) => { if (e.key === 'Escape') open.value = false; };
-const poll = () => { if (!document.hidden) load(); };
 
 onMounted(() => {
     document.addEventListener('click', onDoc);
     document.addEventListener('keydown', onKey);
-    timer = setInterval(poll, 60000);
-    document.addEventListener('visibilitychange', poll);
+    startNotify(page.props.realtime, page.props.notify?.channel);
 });
 onBeforeUnmount(() => {
     document.removeEventListener('click', onDoc);
     document.removeEventListener('keydown', onKey);
-    document.removeEventListener('visibilitychange', poll);
-    clearInterval(timer);
 });
 </script>
 
