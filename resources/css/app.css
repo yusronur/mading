@@ -1,0 +1,142 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+@source '../**/*.vue';
+
+/*
+ * Token tema (ADR-008). Nilai --m-* dicetak server dari tabel themes
+ * (lihat app/Core/Theme/ThemeCss.php). Komponen hanya boleh memakai
+ * utilitas di bawah (bg-surface, text-muted, bg-accent, ...), tidak
+ * boleh menulis warna langsung.
+ */
+@theme inline {
+    --color-bg: var(--m-bg);
+    --color-surface: var(--m-surface);
+    --color-surface2: var(--m-surface2);
+    --color-line: var(--m-border);
+    --color-ink: var(--m-text);
+    --color-muted: var(--m-muted);
+    --color-accent: var(--m-accent);
+    --color-on-accent: var(--m-accent-text);
+    --color-accent2: var(--m-accent2);
+    --color-accent3: var(--m-accent3);
+    --color-success: var(--m-success);
+    --color-warning: var(--m-warning);
+    --color-danger: var(--m-danger);
+    --radius-card: var(--m-radius);
+    --shadow-card: var(--m-shadow);
+    --font-display: var(--m-font-display);
+    --font-sans: var(--m-font-body);
+}
+
+/* Nilai cadangan bila CSS tema belum termuat. :where() membuat prioritasnya
+ * nol sehingga CSS tema dari server selalu menang. */
+:where(:root) {
+    --m-bg: #0e0b1f;
+    --m-surface: #1a1533;
+    --m-surface2: #241d45;
+    --m-border: #3a3166;
+    --m-text: #f3f0ff;
+    --m-muted: #b3abd9;
+    --m-accent: #7cff6b;
+    --m-accent-text: #0e0b1f;
+    --m-accent2: #ff4fd8;
+    --m-accent3: #29e7ff;
+    --m-success: #7cff6b;
+    --m-warning: #ffd43b;
+    --m-danger: #ff7a93;
+    --m-radius: 18px;
+    --m-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    --m-font-display: 'Fredoka', ui-sans-serif, system-ui, sans-serif;
+    --m-font-body: 'Nunito', ui-sans-serif, system-ui, sans-serif;
+    --m-font-scale: 1;
+}
+
+html {
+    font-size: calc(100% * var(--m-font-scale));
+    -webkit-tap-highlight-color: transparent;
+}
+html[data-font-scale='115'] { --m-font-scale: 1.15; }
+html[data-font-scale='130'] { --m-font-scale: 1.3; }
+
+body {
+    background: var(--m-bg);
+    color: var(--m-text);
+    font-family: var(--m-font-body);
+}
+
+h1, h2, h3, .font-display {
+    font-family: var(--m-font-display);
+    letter-spacing: 0.005em;
+}
+
+:focus-visible {
+    outline: 3px solid var(--m-accent3);
+    outline-offset: 2px;
+}
+
+/* Kartu papan memantul saat muncul (THM-06: dimatikan bila kurangi animasi) */
+@keyframes pop-in {
+    0% { transform: scale(0.92) translateY(8px); opacity: 0; }
+    70% { transform: scale(1.02); opacity: 1; }
+    100% { transform: scale(1); }
+}
+.animate-pop { animation: pop-in 0.38s cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+
+/* Kartu baru dari orang lain meluncur masuk; kartu yang berpindah (mis. disematkan) bergeser mulus */
+@keyframes card-in {
+    0% { opacity: 0; transform: translateY(-28px) scale(0.94); }
+    60% { opacity: 1; }
+    100% { opacity: 1; transform: none; }
+}
+.card-enter-active { animation: card-in 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.1) both; }
+.card-move { transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+/* Kotak dialog bergetar bila diklik di luarnya padahal tidak boleh ditutup */
+@keyframes nudge {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(7px); }
+    60% { transform: translateX(-5px); }
+    80% { transform: translateX(3px); }
+}
+.animate-nudge { animation: nudge 0.4s ease-in-out; }
+
+@keyframes float-blob {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(12px, -18px) scale(1.06); }
+}
+.animate-blob { animation: float-blob 9s ease-in-out infinite; }
+
+html[data-reduce-motion='1'] *,
+html[data-reduce-motion='1'] *::before,
+html[data-reduce-motion='1'] *::after {
+    animation: none !important;
+    transition: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .animate-pop, .animate-blob, .animate-nudge, .card-enter-active { animation: none; }
+    .card-move { transition: none; }
+}
+
+/* Kartu akun: cetak A4 tanpa margin bawaan peramban yang terlalu besar */
+@media print {
+    @page { size: A4; margin: 10mm; }
+}
+
+/* Geser kartu (SortableJS) */
+.sortable-ghost { opacity: 0.35; }
+.sortable-chosen > article { transform: rotate(-1.5deg) scale(1.02); }
+
+/* Isi teks berformat (kartu, komentar, editor) */
+.rich > * + * { margin-top: 0.5em; }
+.rich ul { list-style: disc; padding-left: 1.4em; }
+.rich ol { list-style: decimal; padding-left: 1.4em; }
+.rich li > p { margin: 0; }
+.rich a { color: var(--m-accent); text-decoration: underline; text-underline-offset: 2px; word-break: break-word; }
+.rich blockquote { border-left: 3px solid var(--m-border); padding-left: 0.8em; color: var(--m-muted); }
+.rich code { font-family: ui-monospace, monospace; background: var(--m-surface2); padding: 0 0.3em; border-radius: 0.3em; }
+.rich p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--m-muted); opacity: 0.7; float: left; height: 0; pointer-events: none; }
