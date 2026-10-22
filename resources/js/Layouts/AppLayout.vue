@@ -3,6 +3,8 @@ import { computed, ref, watch } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import Flash from '@/Components/Flash.vue';
 import ConfirmDialog from '@/Components/ConfirmDialog.vue';
+import Avatar from '@/Components/Avatar.vue';
+import RewardToaster from '@/Components/Gamify/RewardToaster.vue';
 import { applyTheme } from '@/lib/theme';
 
 // back: { href, label } menampilkan "← Kembali ke {label}" di atas halaman anak
@@ -11,6 +13,7 @@ defineProps({ title: String, wide: Boolean, back: Object });
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
 const school = computed(() => page.props.school);
+const gamify = computed(() => page.props.gamify);
 const menuOpen = ref(false);
 
 watch(() => page.props.theme, (t) => applyTheme(t), { immediate: true, deep: true });
@@ -39,11 +42,16 @@ const nav = computed(() => {
             { label: 'Kuis', route: 'quizzes.index', icon: '📝', active: ['quizzes.*', 'assignments.*'] },
             { label: 'Bank Soal', route: 'banks.index', icon: '📚', active: 'banks.*' },
             ...(user.value?.is_homeroom ? [{ label: 'Kelas Saya', route: 'credentials.index', icon: '🪪', active: 'credentials.*' }] : []),
+            { label: 'Peringkat', route: 'gamify.leaderboard', icon: '🏆', active: 'gamify.leaderboard' },
             { label: 'Profil', route: 'profile.edit', icon: '🎨', active: 'profile.*' },
         ];
     }
     return [
         { label: 'Beranda', route: 'student.dashboard', icon: '🏠', active: 'student.dashboard' },
+        ...(gamify.value ? [
+            { label: 'Prestasi', route: 'gamify.me', icon: '🏅', active: 'gamify.me' },
+            { label: 'Peringkat', route: 'gamify.leaderboard', icon: '🏆', active: 'gamify.leaderboard' },
+        ] : []),
         { label: 'Profil', route: 'profile.edit', icon: '🎨', active: 'profile.*' },
     ];
 });
@@ -62,6 +70,7 @@ const logout = () => router.post(route('logout'));
 
         <Flash />
         <ConfirmDialog />
+        <RewardToaster v-if="gamify" />
 
         <header class="sticky top-0 z-30 border-b border-line/70 bg-bg/80 backdrop-blur-md">
             <div class="mx-auto flex h-16 items-center gap-3 px-4" :class="wide ? 'max-w-7xl' : 'max-w-5xl'">
@@ -83,8 +92,9 @@ const logout = () => router.post(route('logout'));
 
                 <div class="relative ml-auto">
                     <button class="flex items-center gap-2 rounded-full bg-surface2 py-1 pr-3 pl-1" @click="menuOpen = !menuOpen" :aria-expanded="menuOpen">
-                        <span class="grid size-8 place-items-center rounded-full bg-accent2 text-sm font-bold text-bg">{{ user?.initials }}</span>
+                        <Avatar :avatar="user?.avatar" :frame="user?.frame" :initials="user?.initials" :size="34" />
                         <span class="hidden max-w-36 truncate text-sm font-bold sm:block">{{ user?.name }}</span>
+                        <span v-if="gamify" class="rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-on-accent" data-testid="level-chip">Lv {{ gamify.level }}</span>
                     </button>
                     <div v-if="menuOpen" class="absolute right-0 mt-2 w-60 rounded-2xl border border-line bg-surface p-2 shadow-card" @click="menuOpen = false">
                         <div class="px-3 py-2">

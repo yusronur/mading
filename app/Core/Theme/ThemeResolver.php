@@ -21,7 +21,12 @@ class ThemeResolver
             $theme = $board->theme;
         }
 
-        $theme ??= $preference?->theme;
+        // Tema pilihan yang belum terbuka (XP turun/akun berubah) diabaikan
+        $chosen = $preference?->theme;
+        if ($chosen && $user && $chosen->xp_required > app(\App\Modules\Gamify\Gamify::class)->unlockXp($user)) {
+            $chosen = null;
+        }
+        $theme ??= $chosen;
         $theme ??= ($board && $board->theme_id) ? $board->theme : null;
         $theme ??= SchoolSetting::first()?->defaultTheme;
         $theme ??= Theme::orderBy('sort')->first();

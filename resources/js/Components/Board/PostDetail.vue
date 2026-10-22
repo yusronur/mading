@@ -7,6 +7,7 @@ import Reactions from '@/Components/Board/Reactions.vue';
 import { getJson, postJson, deleteJson } from '@/lib/http';
 import { askConfirm } from '@/lib/confirm';
 import { toast } from '@/lib/toast';
+import { refreshGamify } from '@/lib/gamify';
 import { timeAgo } from '@/lib/theme';
 
 // Kartu lengkap + utas komentar (INT-01).
@@ -49,6 +50,7 @@ const send = async () => {
         if (res.held) toast('Komentar ditahan dan menunggu persetujuan guru.');
         body.value = '';
         replyTo.value = null;
+        if (!res.held) refreshGamify();
     } catch (e) {
         toast(e.message, 'error');
     } finally {

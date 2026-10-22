@@ -16,7 +16,7 @@ class UserPreference extends Model
 
     protected $keyType = 'string';
 
-    protected $fillable = ['user_id', 'school_id', 'theme_id', 'color_mode', 'reduce_motion', 'font_scale'];
+    protected $fillable = ['user_id', 'school_id', 'theme_id', 'color_mode', 'reduce_motion', 'font_scale', 'avatar', 'frame'];
 
     protected $casts = ['reduce_motion' => 'boolean', 'font_scale' => 'integer'];
 

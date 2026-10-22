@@ -2,6 +2,35 @@
 
 Format mengikuti Blueprint Bab 17.2. Versi memakai SemVer (`0.x` selama Fase 0-3).
 
+## [0.2.0-alpha.5] - 2026-10-22
+
+### Ditambah (tahap 16)
+- Avatar (12 pilihan emoji) dan bingkai cincin (6 pilihan) yang terbuka otomatis saat total XP tercapai (GAM-05). Tampil di header dan papan peringkat; halaman Profil menampilkan pilihan terkunci beserta XP yang dibutuhkan.
+- Tema XP (THM-04): Retro Game (300 XP) dan Alam Teduh (700 XP), keduanya terang dan gelap serta lulus uji kontras AA. Tema terkunci ditolak di server dan diabaikan bila XP tidak cukup.
+- Guru, admin, dan sekolah yang mematikan gamifikasi: semua hadiah terbuka.
+- Kolom `user_preferences.avatar` dan `frame`. Jalankan `php artisan migrate` dan `php artisan db:seed --class=PlatformSeeder` (menambah tema baru).
+
+## [0.2.0-alpha.4] - 2026-10-22
+
+### Ditambah (tahap 15)
+- Gamifikasi (GAM-01..04, 06, 07): XP dari kartu tayang, komentar bermakna, reaksi, aktivitas live, kuis, dan kuis live; bonus juara 1-3 kuis live. XP dibatasi per hari (150) dan per jenis agar tidak bisa di-spam; setiap sumber hanya dihargai sekali.
+- Level (XP level n = 60 x (n-1)^2), 10 lencana otomatis, dan streak hari sekolah (Sabtu/Minggu tidak memutus rentetan).
+- Toast hadiah (XP, naik level, lencana, streak), chip level di header, kartu XP di beranda siswa, halaman `/prestasi` dan `/peringkat`.
+- Peringkat kelas (mingguan dan sepanjang waktu; skor sama = peringkat sama). Guru/admin bisa menyembunyikannya per kelas; siswa hanya melihat kelasnya sendiri.
+- Pengaturan sekolah: saklar gamifikasi. Semua angka bisa diatur di `config/gamify.php`.
+- Tabel `xp_events`, `user_levels`, `user_badges` (RLS) dan kolom `classes.leaderboard`. Event baru `LiveQuizFinished`.
+
+## [0.2.0-alpha.3] - 2026-10-22
+
+### Ditambah (tahap 14)
+- Aktivitas live di papan (LIV-01..04): timer hitung mundur, poll dengan grafik bergerak, word cloud, dan spin wheel pengacak nama. Satu aktivitas berjalan per papan; yang baru menggantikan yang lama. Guru memulai dari tombol "Aktivitas live" di bilah papan.
+- Pemenang spin wheel diundi di server (`random_int`), roda hanya menganimasikan hasil sehingga semua layar mendarat di nama yang sama. Nama dari rombel papan atau daftar ketikan; opsi tanpa pengulangan.
+- Word cloud: batas kata per siswa, kata kasar ditolak, guru bisa menghapus kata.
+- Mode proyektor (BRD-20) di `/papan/{id}/proyektor`: teks besar, aktivitas memenuhi layar, kartu tampil besar, kode dan QR bergabung.
+- Efek perayaan (konfeti dan suara buatan sendiri) bisa dimatikan lewat tombol "Efek" (LIV-06).
+- Kanal siaran `school.{id}.board.{id}` (event `board.updated`) untuk aktivitas; cadangan pengecekan berkala bila WebSocket tidak tersambung. Kanal ini dipakai ulang untuk kartu di tahap 20.
+- Tabel `board_activities` dan `activity_responses` (dengan RLS).
+
 ## [0.2.0-alpha.2] - 2026-10-22
 
 ### Diubah

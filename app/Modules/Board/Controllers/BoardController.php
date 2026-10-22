@@ -172,7 +172,30 @@ class BoardController extends Controller
             // Data pengaturan hanya dikirim ke pengelola papan
             'settings' => $canManage ? $presenter->settings($board) : null,
             'options' => $canManage ? $presenter->options() : null,
-        ]);
+        ] + $this->activityProps($request, $board));
+    }
+
+    /** Layar proyektor (BRD-20): teks besar, aktivitas live memenuhi layar. */
+    public function projector(Request $request, Board $board, BoardPresenter $presenter): Response
+    {
+        Gate::authorize('view', $board);
+        $user = $request->user();
+        $canManage = Gate::allows('manage', $board);
+
+        return Inertia::render('Boards/Projector', [
+            'board' => $presenter->board($board),
+            'version' => $presenter->version($board),
+            'sections' => $presenter->sections($board),
+            'posts' => $presenter->posts($board, $user),
+            'can' => ['manage' => $canManage, 'interact' => Gate::allows('interact', $board)],
+        ] + $this->activityProps($request, $board));
+    }
+
+    private function activityProps(Request $request, Board $board): array
+    {
+        $payload = app(\App\Modules\Board\Controllers\ActivityController::class)->payload($request, $board);
+
+        return ['activity' => $payload['activity'], 'activity_channel' => $payload['channel']];
     }
 
     public function update(Request $request, Board $board, TenantContext $tenant): RedirectResponse

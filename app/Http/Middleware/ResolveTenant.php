@@ -18,6 +18,7 @@ class ResolveTenant
     public function handle(Request $request, Closure $next): Response
     {
         \App\Modules\Board\BoardPolicy::flush(); // cache hak akses hanya berlaku per permintaan
+        \App\Modules\Gamify\Gamify::flush();
         $school = $this->resolver->resolve($request);
 
         abort_if($school === null, 404, 'Sekolah tidak ditemukan.');

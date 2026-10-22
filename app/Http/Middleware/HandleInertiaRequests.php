@@ -44,6 +44,7 @@ class HandleInertiaRequests extends Middleware
                     'role' => $user->role,
                     'role_label' => User::ROLE_LABELS[$user->role] ?? $user->role,
                     'initials' => $this->initials($user->name),
+                    ...app(\App\Modules\Gamify\Gamify::class)->look($user, $user->preference),
                     'is_homeroom' => $user->isTeacher() && $user->homeroomClassIds() !== [],
                 ] : null,
             ],
@@ -55,6 +56,9 @@ class HandleInertiaRequests extends Middleware
                 'scheme' => config('madingo.realtime.scheme'),
                 'path' => config('madingo.realtime.path'),
             ] : null,
+            // Level, XP, dan pemberitahuan gamifikasi (hanya siswa, bila sekolah mengaktifkan)
+            'gamify' => fn () => $user && $school && $user->role === User::ROLE_STUDENT && app(\App\Modules\Gamify\Gamify::class)->enabled()
+                ? app(\App\Modules\Gamify\Gamify::class)->mini($user) : null,
             'theme' => fn () => app(ThemeResolver::class)->resolve($user, $board instanceof Board ? $board : null),
             // `id` unik per pesan: sinkron papan (partial reload) tidak mengirim ulang flash,
             // dan klien mengingat props lama; id mencegah pesan lama muncul lagi sebagai toast

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { Head, router, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Btn from '@/Components/Btn.vue';
 import EmptyState from '@/Components/EmptyState.vue';
@@ -11,6 +11,8 @@ import MediaViewer from '@/Components/Board/MediaViewer.vue';
 import PostDetail from '@/Components/Board/PostDetail.vue';
 import ShareDialog from '@/Components/Board/ShareDialog.vue';
 import Collaborators from '@/Components/Board/Collaborators.vue';
+import ActivityPanel from '@/Components/Activity/ActivityPanel.vue';
+import ActivityLauncher from '@/Components/Activity/ActivityLauncher.vue';
 import { BACKGROUNDS } from '@/lib/backgrounds';
 import { askConfirm } from '@/lib/confirm';
 import { copyText } from '@/lib/clipboard';
@@ -23,6 +25,7 @@ import { timeAgo } from '@/lib/theme';
 
 const props = defineProps({
     board: Object, posts: Array, sections: Array, can: Object, version: String, settings: Object, options: Object,
+    activity: Object, activity_channel: String,
 });
 
 // Pembaruan hampir real-time (cek ringan tiap ~2 detik). WebSocket menyusul di Fase 2.
@@ -197,6 +200,7 @@ const onMoveCol = ({ id, newIndex }) => {
 const settingsOpen = ref(false);
 const shareOpen = ref(false);
 const collabOpen = ref(false);
+const activityOpen = ref(false);
 const bgCss = computed(() => BACKGROUNDS[props.board.background]?.css ?? null);
 
 // Simpan papan sebagai gambar PNG (SHR-04)
@@ -276,6 +280,8 @@ const copyCode = async () => {
                 <option v-for="(label, key) in options.sorts" :key="key" :value="key">{{ label }}</option>
             </select>
             <button v-if="can.own" type="button" class="h-10 rounded-xl bg-surface2 px-3 text-sm font-bold hover:bg-line/60" @click="collabOpen = true">👥 Kolaborator</button>
+            <button v-if="!board.archived" type="button" class="h-10 rounded-xl bg-accent/15 px-3 text-sm font-bold text-ink hover:bg-accent/25" data-testid="open-activity" @click="activityOpen = true">🎯 Aktivitas live</button>
+            <Link :href="route('boards.projector', board.id)" class="inline-flex h-10 items-center rounded-xl bg-surface2 px-3 text-sm font-bold hover:bg-line/60">📽️ Proyektor</Link>
             <span v-if="canDrag" class="text-sm text-muted">↕ Tahan lalu geser kartu untuk memindah.</span>
         </div>
 
@@ -286,6 +292,9 @@ const copyCode = async () => {
         </button>
 
         <p v-if="board.is_frozen" class="mb-4 rounded-xl bg-warning/15 px-4 py-2 font-bold text-warning">❄️ Papan sedang dibekukan guru.</p>
+
+        <!-- Aktivitas live: timer, poll, word cloud, spin wheel -->
+        <ActivityPanel :board-id="board.id" :initial="activity" :channel="activity_channel" :can-interact="can.interact" />
 
         <EmptyState v-if="!count && !isShelf" title="Papan masih kosong" :text="can.post ? 'Jadilah yang pertama menempel kartu!' : 'Belum ada kartu.'">
             <Btn v-if="can.post" @click="compose()">+ Tempel kartu</Btn>
@@ -418,6 +427,7 @@ const copyCode = async () => {
         </Modal>
 
         <ShareDialog :show="shareOpen" :board="board" :can="can" :secret-url="settings?.secret_url" @close="shareOpen = false" @png="exportPng" />
+        <ActivityLauncher v-if="can.manage" :show="activityOpen" :board-id="board.id" :has-class="!!board.class_name" @close="activityOpen = false" />
         <Collaborators v-if="can.own" :show="collabOpen" :board-id="board.id" @close="collabOpen = false" />
 
         <BoardSettings v-if="can.manage" :show="settingsOpen" :board="board" :settings="settings" :options="options" :can="can" @close="settingsOpen = false" />

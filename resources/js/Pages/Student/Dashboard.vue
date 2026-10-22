@@ -1,4 +1,5 @@
 <script setup>
+import { computed } from 'vue';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Btn from '@/Components/Btn.vue';
@@ -6,10 +7,12 @@ import Card from '@/Components/Card.vue';
 import EmptyState from '@/Components/EmptyState.vue';
 import BoardCard from '@/Components/BoardCard.vue';
 import { Link } from '@inertiajs/vue3';
+import LevelBar from '@/Components/Gamify/LevelBar.vue';
 import { untilText } from '@/lib/datetime';
 
 defineProps({ boards: Array, className: String, quizzes: { type: Array, default: () => [] } });
 const page = usePage();
+const gamify = computed(() => usePage().props.gamify);
 const firstName = (page.props.auth.user?.name || '').split(' ')[0];
 const join = useForm({ code: '' });
 const submit = () => join.post(route('boards.join'));
@@ -22,6 +25,13 @@ const submit = () => join.post(route('boards.join'));
             <p class="font-semibold text-muted">{{ className ? `Kelas ${className}` : 'Belum terdaftar di rombel' }}</p>
             <h1 class="text-4xl font-bold sm:text-5xl">Hai, {{ firstName }}! ✨</h1>
         </section>
+
+        <Link v-if="gamify" :href="route('gamify.me')" class="mb-6 block" data-testid="xp-card">
+            <Card class="transition hover:-translate-y-0.5">
+                <LevelBar :g="gamify" />
+                <p v-if="gamify.streak > 0" class="mt-2 text-sm font-bold">🔥 Rentetan {{ gamify.streak }} hari</p>
+            </Card>
+        </Link>
 
         <Card class="mb-8 bg-gradient-to-br from-accent/20 via-surface to-accent2/15">
             <form class="flex flex-col gap-3 sm:flex-row sm:items-end" @submit.prevent="submit">

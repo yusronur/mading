@@ -32,6 +32,7 @@ class SettingsController extends Controller
                 'allowed_words' => implode(', ', $setting->settings['allowed_words'] ?? []),
                 'storage_quota_mb' => (int) ($setting->settings['storage_quota_mb'] ?? config('madingo.storage.quota_mb')),
                 'max_upload_mb' => (int) ($setting->settings['max_upload_mb'] ?? config('madingo.storage.max_upload_mb')),
+                'gamify_enabled' => (bool) ($setting->settings['gamify_enabled'] ?? true),
             ],
             'storage' => [
                 'used' => $quota->usedBytes(),
@@ -57,6 +58,7 @@ class SettingsController extends Controller
             'allowed_words' => ['nullable', 'string', 'max:5000'],
             'storage_quota_mb' => ['required', 'integer', 'min:100', 'max:1048576'],
             'max_upload_mb' => ['required', 'integer', 'min:1', 'max:512'],
+            'gamify_enabled' => ['required', 'boolean'],
         ], [], [
             'storage_quota_mb' => 'kuota penyimpanan',
             'max_upload_mb' => 'batas unggahan',
@@ -79,6 +81,7 @@ class SettingsController extends Controller
                 'allowed_words' => $words($data['allowed_words'] ?? ''),
                 'storage_quota_mb' => (int) $data['storage_quota_mb'],
                 'max_upload_mb' => (int) $data['max_upload_mb'],
+                'gamify_enabled' => (bool) $data['gamify_enabled'],
             ]),
         ])->save();
 

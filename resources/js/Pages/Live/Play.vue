@@ -1,4 +1,5 @@
 <script setup>
+import { refreshGamify } from '@/lib/gamify';
 import { computed, ref, watch } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import { applyTheme } from '@/lib/theme';
@@ -68,6 +69,7 @@ const matchDone = computed(() => q.value?.type === 'match' && Object.keys(pairs.
 const result = computed(() => me.value.result);
 watch(() => [s.value.phase, result.value?.correct], ([phase, ok]) => {
     if (phase === 'reveal' && ok) confetti({ duration: 1800, count: 90 });
+    if (phase === 'podium') setTimeout(refreshGamify, 1200);
     if (phase === 'podium' && me.value.rank && me.value.rank <= 3 && me.value.score > 0) setTimeout(() => confetti({ duration: 3500, count: 180 }), 400);
 }, { immediate: true });
 
@@ -94,13 +96,13 @@ const leave = () => router.post(route('logout'));
 
         <!-- Dikeluarkan -->
         <main v-if="me.kicked" class="m-auto max-w-sm p-6 text-center">
-            <Mascot :size="96" mood="sad" />
+            <Mascot :size="96" mood="sad" class="mx-auto" />
             <p class="mt-3 text-xl font-bold">Kamu dikeluarkan dari kuis ini oleh guru.</p>
         </main>
 
         <!-- Lobi -->
         <main v-else-if="s.phase === 'lobby'" class="m-auto max-w-sm p-6 text-center">
-            <Mascot :size="110" />
+            <Mascot :size="110" class="mx-auto" />
             <h1 class="mt-3 font-display text-3xl font-bold">Kamu masuk! 🎉</h1>
             <p class="mt-1 text-lg font-semibold text-muted">Lihat layar guru. Kuis dimulai sebentar lagi.</p>
             <p class="mt-4 text-sm text-muted">{{ s.players_count }} pemain sudah bergabung</p>

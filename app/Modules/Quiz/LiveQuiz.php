@@ -351,6 +351,8 @@ class LiveQuiz
                 'score' => (float) QuizAnswer::where('attempt_id', $a->id)->sum('points'),
                 'max_score' => $s->maxScore(),
             ])->save());
+
+        \App\Events\LiveQuizFinished::dispatch($s);
     }
 
     // --------------------------------------------------------------- status
@@ -538,7 +540,7 @@ class LiveQuiz
             ]);
     }
 
-    private function leaderboard(QuizSession $s, int $limit): array
+    public function leaderboard(QuizSession $s, int $limit): array
     {
         $scores = $this->scores($s);
         $teams = [];

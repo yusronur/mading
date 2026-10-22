@@ -15,7 +15,9 @@ class SchoolClass extends Model
 
     protected $table = 'classes';
 
-    protected $fillable = ['school_id', 'academic_year_id', 'name', 'grade', 'homeroom_teacher_id'];
+    protected $fillable = ['school_id', 'academic_year_id', 'name', 'grade', 'homeroom_teacher_id', 'leaderboard'];
+
+    protected $casts = ['leaderboard' => 'boolean'];
 
     public function academicYear(): BelongsTo
     {

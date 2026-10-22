@@ -12,6 +12,7 @@ use App\Modules\Auth\Controllers\HomeController;
 use App\Modules\Auth\Controllers\LoginController;
 use App\Modules\Auth\Controllers\PasswordController;
 use App\Modules\Auth\Controllers\QrLoginController;
+use App\Modules\Board\Controllers\ActivityController;
 use App\Modules\Board\Controllers\BoardController;
 use App\Modules\Board\Controllers\PostController;
 use App\Modules\Board\Controllers\ExportController;
@@ -60,6 +61,11 @@ Route::get('/masuk/qr/{token}', QrLoginController::class)->where('token', '[A-Za
 Route::middleware(['auth', 'password.changed'])->group(function () {
     // Profil dan tampilan (semua peran)
     Route::get('/profil', [ProfileController::class, 'edit'])->name('profile.edit');
+    // Gamifikasi: prestasi pribadi (siswa) dan peringkat kelas
+    Route::get('/prestasi', [\App\Modules\Gamify\Controllers\GamifyController::class, 'me'])->middleware('role:student')->name('gamify.me');
+    Route::post('/prestasi/dilihat', [\App\Modules\Gamify\Controllers\GamifyController::class, 'seen'])->middleware('role:student')->name('gamify.seen');
+    Route::get('/peringkat', [\App\Modules\Gamify\Controllers\GamifyController::class, 'leaderboard'])->middleware('role:student,teacher,school_admin')->name('gamify.leaderboard');
+    Route::post('/peringkat/{class}/tampil', [\App\Modules\Gamify\Controllers\GamifyController::class, 'toggle'])->name('gamify.toggle');
     Route::put('/profil/tampilan', [ProfileController::class, 'updatePreferences'])->name('profile.preferences');
 
     // Papan
@@ -78,6 +84,11 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::get('/papan/{board}/ekspor.{format}', [ExportController::class, 'spreadsheet'])->where('format', 'xlsx|csv')->name('boards.export');
     Route::get('/papan/{board}/cetak', [ExportController::class, 'print'])->name('boards.print');
     Route::get('/papan/{board}', [BoardController::class, 'show'])->name('boards.show');
+    Route::get('/papan/{board}/aktivitas', [ActivityController::class, 'show'])->middleware('throttle:activity')->name('activities.show');
+    Route::post('/papan/{board}/aktivitas', [ActivityController::class, 'store'])->middleware('throttle:activity')->name('activities.store');
+    Route::post('/papan/{board}/aktivitas/{activity}/jawab', [ActivityController::class, 'respond'])->middleware('throttle:activity')->name('activities.respond');
+    Route::post('/papan/{board}/aktivitas/{activity}/aksi', [ActivityController::class, 'act'])->middleware('throttle:activity')->name('activities.act');
+    Route::get('/papan/{board}/proyektor', [BoardController::class, 'projector'])->name('boards.projector');
     Route::post('/papan/{board}/kartu', [PostController::class, 'store'])
         ->middleware('throttle:posts')->name('posts.store');
     Route::put('/papan/{board}', [BoardController::class, 'update'])->name('boards.update');

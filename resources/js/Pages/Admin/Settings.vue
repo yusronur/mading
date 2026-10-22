@@ -43,6 +43,15 @@ const submit = () => form.put(route('admin.settings.update'), { preserveScroll: 
                     <Field v-model="form.bad_words" as="textarea" :rows="3" label="Tambahan kata terlarang" placeholder="pisahkan dengan koma" :error="form.errors.bad_words" />
                     <Field v-model="form.allowed_words" as="textarea" :rows="2" label="Kata bawaan yang diizinkan" placeholder="mis. bego (bila sering salah tangkap)" :error="form.errors.allowed_words" />
                 </fieldset>
+                <fieldset class="space-y-2 rounded-2xl border border-line p-4">
+                    <legend class="px-2 text-sm font-bold text-muted uppercase">Gamifikasi</legend>
+                    <label class="flex items-start gap-3 font-semibold">
+                        <input v-model="form.gamify_enabled" type="checkbox" class="mt-1 size-5 accent-[var(--c-accent)]" data-testid="gamify-enabled" />
+                        <span>Aktifkan XP, level, lencana, dan peringkat kelas untuk siswa
+                            <span class="block text-sm font-normal text-muted">Dimatikan: siswa tidak mendapat XP baru dan menu Prestasi disembunyikan. Data lama tetap tersimpan.</span>
+                        </span>
+                    </label>
+                </fieldset>
                 <Btn type="submit" :loading="form.processing">Simpan pengaturan</Btn>
             </form>
         </Card>

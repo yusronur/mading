@@ -144,6 +144,12 @@ class LiveQuizTest extends TestCase
             ->where('session.class_name', 'Kuis live')->has('report.rows', 2)
             ->where('report.rows.0.name', 'Ani')->where('report.rows.0.grade', 100)
             ->where('report.rows.1.grade', 0));
+
+        // Gamifikasi: ikut live (10 + bonus ketepatan 20) + juara 1 (30); nilai 100 = lencana
+        $xp = fn (User $u) => $this->inSchool($this->school, fn () => \App\Models\UserLevel::where('user_id', $u->id)->value('xp'));
+        $this->assertSame(60, $xp($this->ani));
+        $this->assertSame(10, $xp($this->budi)); // skor 0: tanpa bonus juara
+        $this->assertTrue($this->inSchool($this->school, fn () => \App\Models\UserBadge::where('user_id', $this->ani->id)->whereIn('badge', ['ace', 'podium'])->count() === 2));
     }
 
     public function test_guests_teams_kick_and_access_control(): void

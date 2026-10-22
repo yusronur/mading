@@ -19,7 +19,7 @@ class PlatformSeeder extends Seeder
                 'name' => $theme['name'],
                 'tokens' => json_encode($theme['tokens']),
                 'is_builtin' => true,
-                'xp_required' => 0,
+                'xp_required' => $theme['xp_required'] ?? 0,
                 'sort' => $theme['sort'],
                 'updated_at' => now(),
             ];

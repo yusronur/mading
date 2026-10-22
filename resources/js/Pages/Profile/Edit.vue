@@ -3,8 +3,14 @@ import { Head, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Card from '@/Components/Card.vue';
 import Btn from '@/Components/Btn.vue';
+import Avatar from '@/Components/Avatar.vue';
+import { usePage } from '@inertiajs/vue3';
 
-const props = defineProps({ profile: Object, preferences: Object, themes: Array });
+const props = defineProps({ profile: Object, preferences: Object, themes: Array, catalog: Object, xp: Number, show_cosmetics: Boolean });
+const user = usePage().props.auth.user;
+const chosen = (list, key) => list.find((i) => i.key === key);
+const emoji = () => chosen(props.catalog.avatars, form.avatar)?.emoji;
+const ring = () => chosen(props.catalog.frames, form.frame)?.ring;
 const form = useForm({ ...props.preferences });
 const save = () => form.put(route('profile.preferences'), { preserveScroll: true });
 const modes = [
@@ -29,9 +35,37 @@ const pv = (t) => {
         </Card>
 
         <form class="space-y-6" @submit.prevent="save">
+            <Card v-if="show_cosmetics" data-testid="cosmetics">
+                <h2 class="mb-1 text-xl font-bold">Avatar &amp; bingkai</h2>
+                <p class="mb-4 text-sm text-muted">
+                    <template v-if="xp !== null">Terbuka otomatis saat XP-mu cukup. XP kamu sekarang {{ xp }}.</template>
+                    <template v-else>Semua pilihan terbuka.</template>
+                </p>
+                <div class="mb-4 flex items-center gap-4">
+                    <Avatar :avatar="emoji()" :frame="ring()" :initials="user.initials" :size="72" />
+                    <button type="button" class="text-sm font-bold text-muted underline" @click="form.avatar = null; form.frame = null">Kembali ke inisial</button>
+                </div>
+                <p class="mb-2 text-sm font-bold">Avatar</p>
+                <div class="mb-4 grid grid-cols-4 gap-2 sm:grid-cols-6">
+                    <button v-for="a in catalog.avatars" :key="a.key" type="button" :disabled="a.locked" :data-testid="`avatar-${a.key}`" :title="a.locked ? `${a.name}: buka di ${a.xp} XP` : a.name"
+                        class="rounded-xl border-2 p-2 text-center disabled:opacity-50" :class="form.avatar === a.key ? 'border-accent bg-accent/10' : 'border-line'" @click="form.avatar = a.key">
+                        <span class="block text-3xl" :class="a.locked ? 'grayscale' : ''">{{ a.emoji }}</span>
+                        <span class="block text-[11px] font-bold text-muted">{{ a.locked ? `🔒 ${a.xp} XP` : a.name }}</span>
+                    </button>
+                </div>
+                <p class="mb-2 text-sm font-bold">Bingkai</p>
+                <div class="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                    <button v-for="f in catalog.frames" :key="f.key" type="button" :disabled="f.locked" :data-testid="`frame-${f.key}`"
+                        class="flex flex-col items-center gap-1 rounded-xl border-2 p-2 disabled:opacity-50" :class="form.frame === f.key ? 'border-accent bg-accent/10' : 'border-line'" @click="form.frame = f.key">
+                        <Avatar :avatar="emoji()" :frame="f.ring" :initials="user.initials" :size="44" />
+                        <span class="text-[11px] font-bold text-muted">{{ f.locked ? `🔒 ${f.xp} XP` : f.name }}</span>
+                    </button>
+                </div>
+            </Card>
+
             <Card>
                 <h2 class="mb-1 text-xl font-bold">Tema</h2>
-                <p class="mb-4 text-sm text-muted">Tema lain bisa dibuka dengan XP (segera hadir).</p>
+                <p class="mb-4 text-sm text-muted">Tema bertanda 🔒 terbuka otomatis saat XP-mu cukup.</p>
                 <div class="grid gap-3 sm:grid-cols-2">
                     <button v-for="t in themes" :key="t.id" type="button" :disabled="t.locked"
                         class="overflow-hidden rounded-2xl border-4 text-left transition disabled:opacity-50"
@@ -42,7 +76,7 @@ const pv = (t) => {
                             <span class="size-10 rounded-full" :style="{ background: pv(t).accent }"></span>
                             <span class="size-7 rounded-full" :style="{ background: pv(t).accent2 }"></span>
                         </div>
-                        <p class="bg-surface2 px-3 py-2 font-display font-bold">{{ t.name }} <span v-if="t.locked">🔒</span></p>
+                        <p class="bg-surface2 px-3 py-2 font-display font-bold">{{ t.name }} <span v-if="t.locked" class="text-xs text-muted">🔒 {{ t.xp_required }} XP</span></p>
                     </button>
                 </div>
             </Card>

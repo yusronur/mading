@@ -1,5 +1,9 @@
-// Konfeti ringan tanpa pustaka (LIV-06). Dilewati bila pengguna memilih kurangi animasi.
+// Konfeti ringan tanpa pustaka (LIV-06). Dilewati bila pengguna memilih kurangi animasi
+// atau mematikan efek perayaan.
+import { effects } from '@/lib/effects';
+
 export function confetti({ duration = 2600, count = 140 } = {}) {
+    if (!effects.confetti) return;
     const reduce = document.documentElement.dataset.reduceMotion === '1' || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduce) return;
     const c = document.createElement('canvas');
