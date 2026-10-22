@@ -2,6 +2,19 @@
 
 Format mengikuti Blueprint Bab 17.2. Versi memakai SemVer (`0.x` selama Fase 0-3).
 
+## [0.2.0-alpha.2] - 2026-10-22
+
+### Diubah
+- Kuis live: hitung mundur 3 detik ("Bersiap…") tampil di layar guru dan siswa; soal dan pilihan baru muncul bersamaan setelah hitungan habis (sebelumnya guru melihat soal lebih dulu).
+- Layar siswa: teks pilihan jawaban diperbesar (menyesuaikan panjang teks).
+
+### Ditambah
+- Layar guru: jumlah pemilih tiap pilihan tampil live saat soal berjalan (angka dan batang di tiap warna). Hitungan hanya dikirim ke host, tidak ke siswa dan tidak lewat siaran WebSocket.
+- Perintah `php artisan madingo:demo-quiz [username]` membuat kuis contoh 10 soal.
+
+### Diperbaiki
+- Reverb lewat HTTPS tidak pernah tersambung (`enabledTransports` harus `['ws','wss']`); indikator tetap "Berkala".
+
 ## [0.2.0-alpha.1] - 2026-10-22 (Fase 2, tahap 13: kuis live)
 
 Pembaruan di laptop/server:

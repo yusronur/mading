@@ -404,6 +404,9 @@ class LiveQuiz
         }
 
         if ($host) {
+            if ($qid && $phase === 'question') {
+                $out['host_counts'] = $this->optionCounts($s, $qid);
+            }
             $out['host'] = [
                 'join_url' => ($s->settings['allow_guests'] ?? false) ? route('guest.join', ['kode' => $s->code]) : route('boards.join-link', $s->code),
                 'allow_guests' => (bool) ($s->settings['allow_guests'] ?? false),
@@ -476,6 +479,28 @@ class LiveQuiz
             'answered' => $answers->count(),
             'explanation' => $host ? $q['explanation'] : null,
         ];
+    }
+
+    /**
+     * Jumlah pemilih tiap pilihan pada soal pilihan ganda/benar-salah, urut sesuai pilihan.
+     * Hanya dikirim ke layar host (lewat state), tidak pernah lewat siaran WebSocket,
+     * agar siswa tidak ikut-ikutan pilihan terbanyak.
+     *
+     * @return list<int>|null
+     */
+    private function optionCounts(QuizSession $s, string $qid): ?array
+    {
+        $q = $s->questionMap()[$qid];
+        if (! in_array($q['type'], ['mc', 'mcm', 'tf'], true)) {
+            return null;
+        }
+        $responses = QuizAnswer::whereIn('attempt_id', QuizAttempt::where('session_id', $s->id)->select('id'))
+            ->where('question_id', $qid)->pluck('response');
+
+        return array_map(
+            fn ($o) => $responses->filter(fn ($r) => in_array($o['id'], (array) $r, true))->count(),
+            QuestionData::forStudent($this->engine->model($q))['options']
+        );
     }
 
     /** @return array{0:int,1:int} [sudah menjawab soal aktif, jumlah pemain] */

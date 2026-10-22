@@ -8,6 +8,7 @@ import Mascot from '@/Components/Mascot.vue';
 import MathHtml from '@/Components/Quiz/MathHtml.vue';
 import MatchAnswer from '@/Components/Quiz/MatchAnswer.vue';
 import AnswerShape from '@/Components/Live/AnswerShape.vue';
+import ReadyCount from '@/Components/Live/ReadyCount.vue';
 import { useLive, ANSWER_STYLES, TEAM_COLORS, fmtScore } from '@/lib/useLive';
 import { postJson } from '@/lib/http';
 import { confetti } from '@/lib/confetti';
@@ -21,6 +22,11 @@ const { state, online, secondsLeft, readyLeft, refresh } = useLive(props.initial
 const s = computed(() => state.value);
 const me = computed(() => s.value.me ?? {});
 const q = computed(() => s.value.question);
+// Ukuran teks pilihan: besar agar terbaca di HP; pilihan panjang sedikit diperkecil
+const optClass = (html) => {
+    const n = String(html ?? '').replace(/<[^>]*>/g, '').length;
+    return n <= 14 ? 'text-3xl' : n <= 40 ? 'text-2xl' : n <= 90 ? 'text-xl' : 'text-lg';
+};
 const choice = computed(() => ['mc', 'mcm', 'tf'].includes(q.value?.type));
 
 // Jawaban lokal per soal
@@ -106,15 +112,15 @@ const leave = () => router.post(route('logout'));
                 <span>Soal {{ s.index + 1 }}/{{ s.total }}</span>
                 <span class="grid size-12 place-items-center rounded-full border-4 font-display text-xl text-ink" :class="secondsLeft <= 5 && !readyLeft ? 'border-danger' : 'border-accent'" data-testid="countdown">{{ readyLeft ? '…' : secondsLeft }}</span>
             </div>
-            <MathHtml :html="q.prompt" class="rich rounded-card bg-surface p-4 text-lg font-semibold shadow-card" />
-            <div v-if="q.media.length" class="flex flex-wrap justify-center gap-2">
+            <!-- Soal baru tampil setelah hitung mundur, bersamaan dengan layar guru -->
+            <ReadyCount v-if="readyLeft" :n="readyLeft" />
+
+            <MathHtml v-if="!readyLeft" :html="q.prompt" class="rich rounded-card bg-surface p-4 text-xl font-semibold shadow-card" />
+            <div v-if="!readyLeft && q.media.length" class="flex flex-wrap justify-center gap-2">
                 <template v-for="m in q.media" :key="m.id"><img v-if="m.kind === 'image'" :src="m.url" :alt="m.name" class="max-h-48 rounded-xl object-contain" /></template>
             </div>
 
-            <div v-if="readyLeft" class="m-auto text-center">
-                <p class="font-display text-6xl font-bold text-accent">{{ readyLeft }}</p>
-                <p class="font-bold text-muted">Baca soalnya…</p>
-            </div>
+            <template v-if="readyLeft" />
 
             <div v-else-if="me.answered" class="m-auto max-w-xs text-center" data-testid="answered">
                 <p class="text-5xl">📨</p>
@@ -126,12 +132,12 @@ const leave = () => router.post(route('logout'));
                 <!-- Pilihan ganda / benar-salah / kompleks -->
                 <div v-if="choice" class="grid flex-1 grid-cols-2 gap-2.5" :class="q.options.length <= 2 ? 'grid-rows-1' : 'auto-rows-fr'">
                     <button v-for="(o, i) in q.options" :key="o.id" type="button" :disabled="sending"
-                        class="flex min-h-24 flex-col items-center justify-center gap-1.5 rounded-card p-3 text-center text-base font-bold shadow-card transition active:scale-95"
-                        :class="q.type === 'mcm' && picked.includes(o.id) ? 'ring-4 ring-ink ring-offset-2 ring-offset-bg' : ''"
+                        class="flex min-h-28 flex-col items-center justify-center gap-2 rounded-card p-3 text-center font-extrabold leading-snug shadow-card transition active:scale-95"
+                        :class="[optClass(o.text), q.type === 'mcm' && picked.includes(o.id) ? 'ring-4 ring-ink ring-offset-2 ring-offset-bg' : '']"
                         :style="{ background: ANSWER_STYLES[i % 6].bg, color: ANSWER_STYLES[i % 6].fg }"
                         :aria-pressed="q.type === 'mcm' ? picked.includes(o.id) : undefined" @click="tap(o)">
-                        <AnswerShape :index="i" :size="34" />
-                        <MathHtml :html="o.text" plain tag="span" class="line-clamp-3" />
+                        <AnswerShape :index="i" :size="40" />
+                        <MathHtml :html="o.text" plain tag="span" class="line-clamp-4 break-words" />
                     </button>
                 </div>
                 <Btn v-if="q.type === 'mcm'" size="lg" block :disabled="!picked.length" :loading="sending" @click="send(picked)">Kirim {{ picked.length }} pilihan</Btn>

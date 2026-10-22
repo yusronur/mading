@@ -8,6 +8,7 @@ import ConfirmDialog from '@/Components/ConfirmDialog.vue';
 import Btn from '@/Components/Btn.vue';
 import MathHtml from '@/Components/Quiz/MathHtml.vue';
 import AnswerShape from '@/Components/Live/AnswerShape.vue';
+import ReadyCount from '@/Components/Live/ReadyCount.vue';
 import { useLive, ANSWER_STYLES, TEAM_COLORS, fmtScore } from '@/lib/useLive';
 import { askConfirm } from '@/lib/confirm';
 import { toast } from '@/lib/toast';
@@ -50,7 +51,12 @@ const nextLabel = computed(() => {
     if (s.value.phase === 'reveal' && s.value.host.leaderboard_on) return 'Papan peringkat →';
     return lastIndex.value ? 'Lihat podium 🏆' : 'Soal berikutnya →';
 });
-const maxCount = computed(() => Math.max(1, ...(s.value.reveal?.distribution ?? []).map((d) => d.count)));
+// Jumlah pemilih tiap pilihan: live saat soal berjalan, final saat pembahasan
+const counts = computed(() => (s.value.phase === 'reveal'
+    ? (s.value.reveal?.distribution ?? []).map((d) => d.count)
+    : (s.value.host_counts ?? [])));
+const countOf = (i) => counts.value[i] ?? 0;
+const maxCount = computed(() => Math.max(1, ...counts.value));
 const choice = computed(() => ['mc', 'mcm', 'tf'].includes(q.value?.type));
 const keyText = computed(() => {
     const r = s.value.reveal;
@@ -122,7 +128,9 @@ watch(() => s.value.phase, (p) => { if (p === 'podium') setTimeout(() => confett
                 <span class="rounded-xl bg-surface2 px-4 py-2 text-xl font-bold" data-testid="answered">{{ s.answered }}/{{ s.players_count }} <span class="text-sm text-muted">menjawab</span></span>
             </div>
 
-            <div class="rounded-card border border-line bg-surface p-6 text-center shadow-card">
+            <ReadyCount v-if="s.phase === 'question' && readyLeft" :n="readyLeft" big class="flex-1" />
+
+            <div v-if="!(s.phase === 'question' && readyLeft)" class="rounded-card border border-line bg-surface p-6 text-center shadow-card">
                 <MathHtml :html="q.prompt" class="rich font-display text-2xl leading-snug font-bold sm:text-4xl" />
                 <div v-if="q.media.length" class="mt-4 flex flex-wrap justify-center gap-3">
                     <template v-for="m in q.media" :key="m.id">
@@ -131,24 +139,21 @@ watch(() => s.value.phase, (p) => { if (p === 'podium') setTimeout(() => confett
                         <video v-else-if="m.kind === 'video'" :src="m.url" controls class="max-h-[34vh] rounded-xl"></video>
                     </template>
                 </div>
-                <p v-if="s.phase === 'question' && readyLeft" class="mt-4 animate-pulse text-2xl font-bold text-accent">Siap… {{ readyLeft }}</p>
             </div>
 
             <!-- Pilihan (ganda/benar-salah) -->
-            <div v-if="choice" class="grid flex-1 gap-3 sm:grid-cols-2">
+            <div v-if="choice && !(s.phase === 'question' && readyLeft)" class="grid flex-1 gap-3 sm:grid-cols-2">
                 <div v-for="(o, i) in q.options" :key="o.id" class="relative flex min-h-20 items-center gap-4 overflow-hidden rounded-card px-5 py-4 text-2xl font-bold shadow-card transition-opacity sm:text-3xl"
                     :style="{ background: ANSWER_STYLES[i % 6].bg, color: ANSWER_STYLES[i % 6].fg }"
                     :class="s.phase === 'reveal' && !s.reveal.distribution[i]?.correct ? 'opacity-35' : ''">
                     <AnswerShape :index="i" :size="40" />
                     <MathHtml :html="o.text" plain tag="span" class="min-w-0 flex-1" />
-                    <template v-if="s.phase === 'reveal'">
-                        <span class="text-3xl font-black">{{ s.reveal.distribution[i]?.count ?? 0 }}</span>
-                        <span v-if="s.reveal.distribution[i]?.correct" class="text-4xl" aria-label="Jawaban benar">✓</span>
-                        <span class="absolute inset-x-0 bottom-0 h-2 bg-black/25" :style="{ width: ((s.reveal.distribution[i]?.count ?? 0) / maxCount) * 100 + '%' }"></span>
-                    </template>
+                    <span class="min-w-14 rounded-xl bg-black/20 px-3 py-1 text-center font-mono text-3xl font-black tabular-nums" data-testid="option-count">{{ countOf(i) }}</span>
+                    <span v-if="s.phase === 'reveal' && s.reveal.distribution[i]?.correct" class="text-4xl" aria-label="Jawaban benar">✓</span>
+                    <span class="absolute inset-x-0 bottom-0 h-2 origin-left bg-black/25 transition-[width] duration-500" :style="{ width: (countOf(i) / maxCount) * 100 + '%' }"></span>
                 </div>
             </div>
-            <div v-else-if="s.phase === 'question'" class="flex flex-1 items-center justify-center rounded-card border-2 border-dashed border-line p-6 text-center text-2xl font-bold text-muted">
+            <div v-else-if="s.phase === 'question' && !readyLeft" class="flex flex-1 items-center justify-center rounded-card border-2 border-dashed border-line p-6 text-center text-2xl font-bold text-muted">
                 {{ q.type === 'short' ? '✍️ Siswa mengetik jawaban di HP' : '🔗 Siswa menjodohkan pasangan di HP' }}
             </div>
 

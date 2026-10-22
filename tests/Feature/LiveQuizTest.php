@@ -105,6 +105,10 @@ class LiveQuizTest extends TestCase
         $this->actingAs($this->ani)->postJson(route('live.answer', $s), ['question_id' => $qid, 'response' => 'a'])->assertStatus(422); // sekali saja
         $this->assertFalse($this->state($this->ani, $s)['me']['result'] !== null, 'hasil belum terlihat sebelum pembahasan');
 
+        // Layar host melihat jumlah pemilih tiap pilihan secara live; siswa tidak
+        $this->assertSame([0, 1], $this->state($this->teacher, $s)['host_counts']);
+        $this->assertArrayNotHasKey('host_counts', $this->state($this->ani, $s));
+
         $this->travel(9)->seconds();
         $this->actingAs($this->budi)->postJson(route('live.answer', $s), ['question_id' => $qid, 'response' => 'a'])->assertOk();
 

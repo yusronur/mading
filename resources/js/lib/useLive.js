@@ -54,11 +54,20 @@ export function useLive(initial, { host = false } = {}) {
         deadlineTimer = setTimeout(refresh, wait);
     };
 
+    // Host: hitungan per pilihan ikut diperbarui, paling sering tiap 0,7 detik
+    let lastCounts = 0;
+    let countsTimer = null;
+    const refreshCounts = () => {
+        clearTimeout(countsTimer);
+        const wait = Math.max(0, 700 - (Date.now() - lastCounts));
+        countsTimer = setTimeout(() => { lastCounts = Date.now(); refresh(); }, wait);
+    };
+
     const onSignal = (payload) => {
         if (payload?.kind === 'progress') {
-            // Hanya hitungan; tidak perlu mengambil status lengkap
             if (host && state.value.phase === 'question') {
                 state.value = { ...state.value, answered: payload.answered, players_count: payload.players };
+                refreshCounts();
             }
             return;
         }
@@ -78,6 +87,7 @@ export function useLive(initial, { host = false } = {}) {
         clearInterval(clockTimer);
         clearTimeout(pollTimer);
         clearTimeout(deadlineTimer);
+        clearTimeout(countsTimer);
         document.removeEventListener('visibilitychange', onVisible);
         window.removeEventListener('online', refresh);
         stopListen();
