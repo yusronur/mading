@@ -18,6 +18,8 @@ const ICONS = { timer: '⏱️', poll: '📊', cloud: '☁️', wheel: '🎡' };
 const NAMES = { timer: 'Timer', poll: 'Poll', cloud: 'Word cloud', wheel: 'Spin wheel' };
 const manage = computed(() => a.value?.can_manage);
 const open = computed(() => a.value?.status === 'open');
+const paused = computed(() => a.value?.type === 'timer' && open.value && !!a.value.state?.paused_left);
+const timerDone = computed(() => a.value?.type === 'timer' && open.value && !paused.value && Date.parse(a.value.state?.ends_at) <= now.value);
 
 const run = async (action, extra) => {
     try { await act(action, extra); } catch (e) { toast(e.message, 'error'); }
@@ -41,6 +43,8 @@ const addWord = async () => {
 };
 const vote = (id) => respond(id);
 const serverNow = computed(() => now.value);
+// Tanpa pengulangan: sisa satu nama otomatis terpilih, tombol Putar tidak diperlukan lagi
+const canSpin = computed(() => a.value?.config?.no_repeat === false || (a.value?.config?.names?.length ?? 0) - (a.value?.state?.picked?.length ?? 0) > 1);
 // Daftar "sudah terpilih" menunggu putaran selesai agar tidak membocorkan pemenang
 const winnerNames = computed(() => {
     if (a.value?.type !== 'wheel') return [];
@@ -55,9 +59,12 @@ const winnerNames = computed(() => {
         <header class="mb-3 flex flex-wrap items-center gap-2">
             <span class="text-2xl" aria-hidden="true">{{ ICONS[a.type] }}</span>
             <h2 class="min-w-0 flex-1 truncate font-display font-bold" :class="big ? 'text-3xl' : 'text-xl'">{{ a.title || NAMES[a.type] }}</h2>
-            <span v-if="!open && a.type !== 'wheel'" class="rounded-full bg-surface2 px-3 py-0.5 text-xs font-bold text-muted">{{ a.type === 'timer' ? 'dihentikan' : 'ditutup' }}</span>
+            <span v-if="!open && a.type !== 'wheel' && a.type !== 'poll'" class="rounded-full bg-surface2 px-3 py-0.5 text-xs font-bold text-muted">{{ a.type === 'timer' ? 'dihentikan' : '(ditutup)' }}</span>
+            <span v-if="paused" class="rounded-full bg-surface2 px-3 py-0.5 text-xs font-bold text-accent">⏸ dijeda</span>
 
             <template v-if="manage">
+                <Btn v-if="a.type === 'timer' && open && paused" size="sm" data-testid="timer-resume" @click="run('resume')">▶ Lanjutkan</Btn>
+                <Btn v-else-if="a.type === 'timer' && open && !timerDone" size="sm" variant="soft" data-testid="timer-pause" @click="run('pause')">⏸ Jeda</Btn>
                 <Btn v-if="a.type === 'timer'" size="sm" variant="soft" @click="restart()">↻ Mulai ulang</Btn>
                 <Btn v-if="a.type === 'timer' && open" size="sm" variant="soft" @click="run('close')">■ Hentikan</Btn>
                 <Btn v-if="(a.type === 'poll' || a.type === 'cloud') && open" size="sm" variant="soft" @click="run('close')">Tutup {{ a.type === 'poll' ? 'poll' : 'jawaban' }}</Btn>
@@ -85,9 +92,9 @@ const winnerNames = computed(() => {
         </div>
 
         <div v-else-if="a.type === 'wheel'">
-            <SpinWheel :names="a.config.names" :spin="a.state?.spin" :server-now="serverNow" :big="big" />
+            <SpinWheel :names="a.config.names" :spin="a.state?.spin" :picked="a.state?.picked ?? []" :no-repeat="a.config.no_repeat !== false" :server-now="serverNow" :big="big" />
             <div v-if="manage" class="mt-2 flex flex-wrap justify-center gap-2">
-                <Btn size="lg" data-testid="wheel-spin" @click="run('spin')">🎡 Putar!</Btn>
+                <Btn v-if="canSpin" size="lg" data-testid="wheel-spin" @click="run('spin')">🎡 Putar!</Btn>
                 <Btn variant="soft" @click="run('reset_wheel')">Atur ulang</Btn>
             </div>
             <p v-if="winnerNames.length" class="mt-3 text-center text-sm text-muted" :class="big ? '!text-xl' : ''">Sudah terpilih: {{ winnerNames.join(', ') }}</p>

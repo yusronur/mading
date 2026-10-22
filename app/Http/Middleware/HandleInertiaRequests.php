@@ -59,6 +59,12 @@ class HandleInertiaRequests extends Middleware
             // Level, XP, dan pemberitahuan gamifikasi (hanya siswa, bila sekolah mengaktifkan)
             'gamify' => fn () => $user && $school && $user->role === User::ROLE_STUDENT && app(\App\Modules\Gamify\Gamify::class)->enabled()
                 ? app(\App\Modules\Gamify\Gamify::class)->mini($user) : null,
+            // Jumlah notifikasi belum dibaca untuk lonceng (peran selain tamu)
+            'notify' => fn () => $user && $school && $user->role !== User::ROLE_GUEST
+                ? [
+                    'unread' => app(\App\Modules\Notify\Notify::class)->unread($user),
+                    'key' => app(\App\Modules\Notify\Notify::class)->pushAvailable() ? config('notify.vapid.public') : null,
+                ] : null,
             'theme' => fn () => app(ThemeResolver::class)->resolve($user, $board instanceof Board ? $board : null),
             // `id` unik per pesan: sinkron papan (partial reload) tidak mengirim ulang flash,
             // dan klien mengingat props lama; id mencegah pesan lama muncul lagi sebagai toast

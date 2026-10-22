@@ -5,7 +5,7 @@ import Card from '@/Components/Card.vue';
 import Field from '@/Components/Field.vue';
 import Btn from '@/Components/Btn.vue';
 
-const props = defineProps({ settings: Object, themes: Array, storage: Object, php_upload_limit: String, default_words: Number });
+const props = defineProps({ settings: Object, themes: Array, storage: Object, php_upload_limit: String, default_words: Number, push_ready: Boolean });
 const pct = Math.min(100, Math.round((props.storage.used / props.storage.quota) * 100));
 const form = useForm({ ...props.settings });
 const submit = () => form.put(route('admin.settings.update'), { preserveScroll: true });
@@ -51,6 +51,16 @@ const submit = () => form.put(route('admin.settings.update'), { preserveScroll: 
                             <span class="block text-sm font-normal text-muted">Dimatikan: siswa tidak mendapat XP baru dan menu Prestasi disembunyikan. Data lama tetap tersimpan.</span>
                         </span>
                     </label>
+                </fieldset>
+                <fieldset class="space-y-2 rounded-2xl border border-line p-4">
+                    <legend class="px-2 text-sm font-bold text-muted uppercase">Notifikasi push</legend>
+                    <label class="flex items-start gap-3 font-semibold">
+                        <input v-model="form.push_enabled" type="checkbox" class="mt-1 size-5 accent-[var(--c-accent)]" data-testid="push-enabled" />
+                        <span>Izinkan notifikasi push ke HP dan laptop pengguna
+                            <span class="block text-sm font-normal text-muted">Dimatikan: pesan tetap masuk lonceng, tetapi tidak muncul di layar perangkat.</span>
+                        </span>
+                    </label>
+                    <p v-if="!push_ready" class="rounded-xl bg-warning/15 p-3 text-sm" data-testid="vapid-warning">Kunci VAPID belum diatur di server, jadi push belum bisa dikirim. Jalankan <code>php artisan madingo:vapid</code>, tempel hasilnya ke <code>.env</code>, lalu <code>php artisan config:cache</code>.</p>
                 </fieldset>
                 <Btn type="submit" :loading="form.processing">Simpan pengaturan</Btn>
             </form>

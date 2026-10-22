@@ -46,8 +46,11 @@ class UserController extends Controller
                 'role' => $u->role,
                 'role_label' => User::ROLE_LABELS[$u->role] ?? $u->role,
                 'gender' => $u->gender,
+                'email' => $u->email,
+                'birth_date' => $u->birth_date?->toDateString(),
                 'status' => $u->status,
                 'class' => $u->classes->first()?->name,
+                'class_id' => $u->classes->first()?->id,
                 'must_change_password' => $u->must_change_password,
                 'has_initial_password' => $u->must_change_password && $u->initial_password !== null,
                 'last_login_at' => $u->last_login_at?->toIso8601String(),
@@ -115,6 +118,65 @@ class UserController extends Controller
         AuditLog::record('user.created', $user, ['username' => $user->username, 'role' => $user->role]);
 
         return back()->with('credential_for', $user->id)->with('success', "Akun {$user->name} dibuat. Catat atau cetak sandi awalnya.");
+    }
+
+    /** Ubah identitas pengguna: nama, username/NISN, email, jenis kelamin, tanggal lahir, rombel siswa. */
+    public function update(Request $request, User $user): RedirectResponse
+    {
+        abort_if($user->role === User::ROLE_GUEST, 404);
+        $year = AcademicYear::active();
+
+        $data = $request->validate([
+            'username' => ['required', 'string', 'min:3', 'max:60', 'regex:/^[A-Za-z0-9._-]+$/'],
+            'name' => ['required', 'string', 'min:2', 'max:150'],
+            'email' => ['nullable', 'string', 'email:rfc', 'max:150'],
+            'gender' => ['nullable', Rule::in(['L', 'P'])],
+            'birth_date' => ['nullable', 'date', 'before:tomorrow', 'after:1930-01-01'],
+            'class_id' => [
+                'nullable', 'uuid',
+                Rule::exists('classes', 'id')->where('school_id', $user->school_id)->where('academic_year_id', $year?->id),
+            ],
+        ], [
+            'username.regex' => 'Username hanya boleh huruf, angka, titik, garis bawah, dan strip (tanpa spasi).',
+            'email.email' => 'Format email tidak valid.',
+        ], ['username' => 'NISN/username', 'name' => 'nama', 'email' => 'email', 'birth_date' => 'tanggal lahir', 'class_id' => 'rombel']);
+
+        $username = trim($data['username']);
+        if (User::withTrashed()->whereKeyNot($user->id)->whereRaw('lower(username) = ?', [mb_strtolower($username)])->exists()) {
+            return back()->withErrors(['username' => 'NISN/username ini sudah dipakai akun lain (termasuk akun yang dihapus).']);
+        }
+
+        $before = $user->only(['username', 'name', 'email', 'gender', 'birth_date']);
+
+        DB::transaction(function () use ($user, $data, $username, $year) {
+            $user->forceFill([
+                'username' => $username,
+                'name' => trim(strip_tags($data['name'])),
+                'email' => ! empty($data['email']) ? mb_strtolower(trim($data['email'])) : null,
+                'gender' => $data['gender'] ?? null,
+                'birth_date' => $data['birth_date'] ?? null,
+            ])->save();
+
+            // Pindah rombel (siswa, tahun ajaran aktif)
+            if ($user->role === User::ROLE_STUDENT && $year && array_key_exists('class_id', $data) && $data['class_id']) {
+                $current = DB::table('class_members as m')->join('classes as c', 'c.id', '=', 'm.class_id')
+                    ->where('m.user_id', $user->id)->where('c.academic_year_id', $year->id)->pluck('m.class_id')->all();
+                if ($current !== [$data['class_id']]) {
+                    DB::table('class_members')->where('user_id', $user->id)->whereIn('class_id', $current)->delete();
+                    DB::table('class_members')->insert([
+                        'class_id' => $data['class_id'], 'user_id' => $user->id, 'school_id' => $user->school_id,
+                        'created_at' => now(), 'updated_at' => now(),
+                    ]);
+                }
+            }
+        });
+
+        AuditLog::record('user.updated', $user, ['username' => $user->username, 'changed' => array_keys(array_diff_assoc(
+            array_map('strval', $user->only(['username', 'name', 'email', 'gender', 'birth_date'])),
+            array_map('strval', $before)
+        ))]);
+
+        return back()->with('success', "Data {$user->name} disimpan.");
     }
 
     public function resetPassword(Request $request, User $user, InitialPasswords $passwords): RedirectResponse

@@ -21,12 +21,13 @@ const items = computed(() => [...(props.words ?? [])]
 <template>
     <div class="flex flex-wrap content-center items-center justify-center gap-x-5 gap-y-1 py-3" :class="big ? 'min-h-[50vh]' : 'min-h-40'" data-testid="word-cloud">
         <p v-if="!items.length" class="font-semibold text-muted" :class="big ? 'text-3xl' : ''">Belum ada kata. Jadilah yang pertama!</p>
-        <component :is="removable ? 'button' : 'span'" v-for="w in items" :key="w.text" :type="removable ? 'button' : undefined"
-            class="group relative font-display leading-tight font-extrabold transition-[font-size] duration-500" :style="{ fontSize: w.size + 'px', color: w.color }"
-            :title="removable ? 'Klik untuk menghapus kata ini' : `${w.text} (${w.count})`" @click="removable && emit('remove', w.text)">
-            {{ w.text }}
-            <sup v-if="w.count > 1" class="ml-0.5 text-[0.4em] font-bold text-muted">{{ w.count }}</sup>
-            <span v-if="removable" class="absolute -top-1 -right-2 hidden size-5 place-items-center rounded-full bg-danger text-[11px] text-bg group-hover:grid" aria-hidden="true">✕</span>
-        </component>
+        <span v-for="w in items" :key="w.text" class="group relative inline-block font-display leading-tight font-extrabold transition-[font-size] duration-500"
+            :style="{ fontSize: w.size + 'px', color: w.color }" :title="`${w.text} (${w.count})`">
+            <span class="rounded-lg px-1 transition-colors" :class="removable ? 'group-hover:bg-surface2' : ''">{{ w.text }}<sup v-if="w.count > 1" class="ml-0.5 text-[0.4em] font-bold text-muted">{{ w.count }}</sup></span>
+            <!-- Hapus hanya lewat tombol ✕ di pojok kata, bukan klik pada kata -->
+            <button v-if="removable" type="button" :aria-label="`Hapus kata ${w.text}`" title="Hapus kata ini"
+                class="absolute -top-2 -right-3 grid size-5 place-items-center rounded-full bg-danger text-[11px] leading-none font-bold text-bg opacity-0 transition group-focus-within:opacity-100 group-hover:opacity-100 hover:scale-110 focus-visible:opacity-100"
+                :data-testid="`cloud-remove-${w.text}`" @click.stop="emit('remove', w.text)">✕</button>
+        </span>
     </div>
 </template>

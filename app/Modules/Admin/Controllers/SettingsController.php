@@ -33,12 +33,14 @@ class SettingsController extends Controller
                 'storage_quota_mb' => (int) ($setting->settings['storage_quota_mb'] ?? config('madingo.storage.quota_mb')),
                 'max_upload_mb' => (int) ($setting->settings['max_upload_mb'] ?? config('madingo.storage.max_upload_mb')),
                 'gamify_enabled' => (bool) ($setting->settings['gamify_enabled'] ?? true),
+                'push_enabled' => (bool) ($setting->settings['push_enabled'] ?? true),
             ],
             'storage' => [
                 'used' => $quota->usedBytes(),
                 'used_label' => StorageQuota::human($quota->usedBytes()),
                 'quota' => $quota->quotaBytes(),
             ],
+            'push_ready' => app(\App\Modules\Notify\WebPush::class)->configured(),
             'php_upload_limit' => ini_get('upload_max_filesize'),
             'default_words' => count(ProfanityFilter::DEFAULT_WORDS),
             'themes' => Theme::orderBy('sort')->get(['id', 'name', 'key']),
@@ -59,6 +61,7 @@ class SettingsController extends Controller
             'storage_quota_mb' => ['required', 'integer', 'min:100', 'max:1048576'],
             'max_upload_mb' => ['required', 'integer', 'min:1', 'max:512'],
             'gamify_enabled' => ['required', 'boolean'],
+            'push_enabled' => ['nullable', 'boolean'],
         ], [], [
             'storage_quota_mb' => 'kuota penyimpanan',
             'max_upload_mb' => 'batas unggahan',
@@ -82,6 +85,7 @@ class SettingsController extends Controller
                 'storage_quota_mb' => (int) $data['storage_quota_mb'],
                 'max_upload_mb' => (int) $data['max_upload_mb'],
                 'gamify_enabled' => (bool) $data['gamify_enabled'],
+                'push_enabled' => (bool) ($data['push_enabled'] ?? true),
             ]),
         ])->save();
 

@@ -9,30 +9,34 @@ import EmptyState from '@/Components/EmptyState.vue';
 import { askConfirm } from '@/lib/confirm';
 import { timeAgo } from '@/lib/theme';
 
-const props = defineProps({ classes: Array, classId: String, canAll: Boolean, students: Array, stats: Object });
+const props = defineProps({ classes: Array, classId: String, role: { type: String, default: 'student' }, canAll: Boolean, students: Array, stats: Object });
 const isAdmin = computed(() => usePage().props.auth.user.role === 'school_admin');
+const isTeacherMode = computed(() => props.role === 'teacher');
+const noun = computed(() => (isTeacherMode.value ? 'guru' : 'siswa'));
+const setRole = (r) => router.get(route('credentials.index'), r === 'teacher' ? { role: 'teacher' } : {}, { preserveScroll: true });
 
 const selected = computed({
     get: () => props.classId ?? '',
     set: (v) => router.get(route('credentials.index'), v ? { class_id: v } : {}, { preserveState: true, preserveScroll: true }),
 });
-const scopeName = computed(() => props.classes.find((c) => c.id === props.classId)?.name ?? 'seluruh sekolah');
+const scopeName = computed(() => (isTeacherMode.value ? 'semua guru' : props.classes.find((c) => c.id === props.classId)?.name ?? 'seluruh sekolah'));
 const toBeChanged = computed(() => props.stats.ready + props.stats.missing);
-const printable = computed(() => props.stats.ready + props.stats.qr > 0);
-const printParams = computed(() => (props.classId ? { class_id: props.classId } : { all: 1 }));
+const printable = computed(() => props.stats.ready + (isTeacherMode.value ? 0 : props.stats.qr) > 0);
+const printParams = computed(() => (isTeacherMode.value ? { role: 'teacher', all: 1 } : props.classId ? { class_id: props.classId } : { all: 1 }));
+const scopeData = computed(() => (isTeacherMode.value ? { role: 'teacher' } : { class_id: props.classId }));
 const opts = { preserveScroll: true };
 
 const generate = async (regenerate = false) => {
     const n = regenerate ? toBeChanged.value : props.stats.missing;
     const ok = await askConfirm({
-        title: regenerate ? `Buat ulang ${n} sandi awal?` : `Buat sandi awal untuk ${n} siswa?`,
+        title: regenerate ? `Buat ulang ${n} sandi awal?` : `Buat sandi awal untuk ${n} ${noun.value}?`,
         message: regenerate
-            ? `Sandi awal ${scopeName.value} yang belum diganti siswa akan diganti baru. Kartu yang sudah dicetak tidak berlaku lagi.`
-            : `Hanya siswa ${scopeName.value} yang belum pernah mengganti sandi dan belum punya sandi awal.`,
+            ? `Sandi awal ${scopeName.value} yang belum diganti akan diganti baru. Kartu yang sudah dicetak tidak berlaku lagi.`
+            : `Hanya ${noun.value} (${scopeName.value}) yang belum pernah mengganti sandi dan belum punya sandi awal.`,
         confirmText: regenerate ? 'Buat ulang' : 'Buat sandi',
         tone: regenerate ? 'danger' : 'primary',
     });
-    if (ok) router.post(route('credentials.generate'), { class_id: props.classId, regenerate }, opts);
+    if (ok) router.post(route('credentials.generate'), { ...scopeData.value, regenerate }, opts);
 };
 
 const qr = async (action, s = null) => {
@@ -48,15 +52,15 @@ const qr = async (action, s = null) => {
 
 const regenerateOne = async (s) => {
     const ok = await askConfirm({ title: `Buat ulang sandi awal ${s.name}?`, message: 'Sandi awal yang lama tidak berlaku lagi.', confirmText: 'Buat ulang' });
-    if (ok) router.post(route('credentials.generate'), { class_id: props.classId, user_id: s.id }, opts);
+    if (ok) router.post(route('credentials.generate'), { ...scopeData.value, user_id: s.id }, opts);
 };
 const reset = async (s) => {
     const ok = await askConfirm({
         title: `Reset sandi ${s.name}?`,
-        message: 'Untuk siswa yang lupa sandi. Sandi lama tidak berlaku; siswa mendapat sandi awal baru yang wajib diganti saat masuk.',
+        message: 'Untuk yang lupa sandi. Sandi lama tidak berlaku; akun mendapat sandi awal baru yang wajib diganti saat masuk.',
         confirmText: 'Reset sandi', tone: 'danger',
     });
-    if (ok) router.post(route('credentials.reset'), { class_id: props.classId, user_id: s.id }, opts);
+    if (ok) router.post(route('credentials.reset'), { ...scopeData.value, user_id: s.id }, opts);
 };
 
 const state = {
@@ -69,14 +73,18 @@ const linkBtn = 'inline-flex items-center rounded-[calc(var(--m-radius)*0.7)] fo
 
 <template>
     <Head :title="isAdmin ? 'Kartu akun' : 'Kelas saya'" />
-    <AppLayout :title="isAdmin ? 'Kartu akun siswa 🪪' : 'Kelas saya 🪪'" wide>
+    <AppLayout :title="isAdmin ? 'Kartu akun 🪪' : 'Kelas saya 🪪'" wide>
         <p class="-mt-3 mb-5 max-w-3xl text-muted">
             Cetak kartu berisi <b class="text-ink">kode QR</b> (masuk tanpa mengetik) dan/atau <b class="text-ink">sandi awal</b> (wajib diganti saat masuk pertama), per rombel atau per siswa.
             Keduanya tersimpan terenkripsi, jadi kartu bisa dicetak ulang kapan saja. Kartu hilang? Buat ulang QR siswa itu; kartu lama langsung tidak berlaku.
         </p>
 
         <div class="mb-5 flex flex-wrap items-end gap-3">
-            <label class="block">
+            <div v-if="canAll" class="flex rounded-xl bg-surface2 p-1" role="tablist" aria-label="Peran">
+                <button v-for="r in [['student', '🎒 Siswa'], ['teacher', '🧑‍🏫 Guru']]" :key="r[0]" type="button" role="tab" :aria-selected="role === r[0]" :data-testid="`role-${r[0]}`"
+                    class="h-10 rounded-lg px-5 font-bold" :class="role === r[0] ? 'bg-surface shadow-card' : 'text-muted'" @click="setRole(r[0])">{{ r[1] }}</button>
+            </div>
+            <label v-if="!isTeacherMode" class="block">
                 <span class="mb-1.5 block text-sm font-bold">Rombel</span>
                 <select v-model="selected" class="h-12 min-w-56 rounded-xl border-2 border-line bg-surface px-3 text-ink focus:border-accent focus:outline-none">
                     <option v-if="canAll" value="">Seluruh sekolah</option>
@@ -85,9 +93,9 @@ const linkBtn = 'inline-flex items-center rounded-[calc(var(--m-radius)*0.7)] fo
             </label>
         </div>
 
-        <div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
-            <Card><p class="font-display text-3xl font-bold">{{ stats.total }}</p><p class="text-sm font-semibold text-muted">siswa aktif</p></Card>
-            <Card><p class="font-display text-3xl font-bold text-accent3">{{ stats.qr }}</p><p class="text-sm font-semibold text-muted">punya kode QR</p></Card>
+        <div :class="isTeacherMode ? 'sm:grid-cols-4' : 'sm:grid-cols-5'" class="mb-6 grid grid-cols-2 gap-3">
+            <Card><p class="font-display text-3xl font-bold">{{ stats.total }}</p><p class="text-sm font-semibold text-muted">{{ noun }} aktif</p></Card>
+            <Card v-if="!isTeacherMode"><p class="font-display text-3xl font-bold text-accent3">{{ stats.qr }}</p><p class="text-sm font-semibold text-muted">punya kode QR</p></Card>
             <Card><p class="font-display text-3xl font-bold text-success">{{ stats.changed }}</p><p class="text-sm font-semibold text-muted">sudah ganti sandi</p></Card>
             <Card><p class="font-display text-3xl font-bold text-accent">{{ stats.ready }}</p><p class="text-sm font-semibold text-muted">sandi awal siap</p></Card>
             <Card><p class="font-display text-3xl font-bold text-warning">{{ stats.missing }}</p><p class="text-sm font-semibold text-muted">belum punya sandi awal</p></Card>
@@ -95,12 +103,12 @@ const linkBtn = 'inline-flex items-center rounded-[calc(var(--m-radius)*0.7)] fo
 
         <Card class="mb-6 space-y-4 border-accent">
             <div class="flex flex-wrap items-center justify-between gap-3">
-                <p class="text-lg font-bold">{{ scopeName === 'seluruh sekolah' ? 'Seluruh sekolah' : 'Rombel ' + scopeName }}</p>
+                <p class="text-lg font-bold">{{ isTeacherMode ? 'Semua guru aktif' : scopeName === 'seluruh sekolah' ? 'Seluruh sekolah' : 'Rombel ' + scopeName }}</p>
                 <a v-if="printable" :href="route('credentials.print', printParams)" target="_blank" rel="noopener"
                     :class="linkBtn" class="h-11 bg-accent px-5 text-on-accent shadow-card hover:brightness-110">🖨️ Cetak kartu</a>
             </div>
             <div class="grid gap-3 lg:grid-cols-2">
-                <div class="rounded-2xl bg-surface2/60 p-4">
+                <div v-if="!isTeacherMode" class="rounded-2xl bg-surface2/60 p-4">
                     <p class="mb-2 font-bold">📱 Kode QR login</p>
                     <div class="flex flex-wrap gap-2">
                         <Btn size="sm" :disabled="stats.qr >= stats.total" @click="qr('generate')">Buat QR ({{ stats.total - stats.qr }})</Btn>
@@ -118,8 +126,8 @@ const linkBtn = 'inline-flex items-center rounded-[calc(var(--m-radius)*0.7)] fo
             </div>
         </Card>
 
-        <EmptyState v-if="!classId" title="Pilih rombel untuk melihat daftar siswa" text="Atau langsung buat dan cetak kartu seluruh sekolah dengan tombol di atas." />
-        <EmptyState v-else-if="!students.length" title="Rombel ini belum punya siswa aktif" text="Impor data siswa terlebih dahulu." />
+        <EmptyState v-if="!classId && !isTeacherMode" title="Pilih rombel untuk melihat daftar siswa" text="Atau langsung buat dan cetak kartu seluruh sekolah dengan tombol di atas." />
+        <EmptyState v-else-if="!students.length" :title="isTeacherMode ? 'Belum ada guru aktif' : 'Rombel ini belum punya siswa aktif'" text="Impor atau tambah pengguna terlebih dahulu." />
 
         <Card v-else :padded="false" class="overflow-hidden">
             <div class="overflow-x-auto">
@@ -127,7 +135,7 @@ const linkBtn = 'inline-flex items-center rounded-[calc(var(--m-radius)*0.7)] fo
                     <thead class="bg-surface2 text-xs uppercase text-muted">
                         <tr>
                             <th class="px-4 py-3">Nama</th>
-                            <th class="px-4 py-3">NISN</th>
+                            <th class="px-4 py-3">{{ isTeacherMode ? 'NIP / username' : 'NISN' }}</th>
                             <th class="px-4 py-3">Status</th>
                             <th class="px-4 py-3">Login terakhir</th>
                             <th class="px-4 py-3 text-right">Aksi</th>
@@ -146,10 +154,10 @@ const linkBtn = 'inline-flex items-center rounded-[calc(var(--m-radius)*0.7)] fo
                             <td class="px-4 py-3 text-muted">{{ s.last_login_at ? timeAgo(s.last_login_at) : 'belum pernah' }}</td>
                             <td class="px-4 py-3">
                                 <div class="flex flex-wrap justify-end gap-1.5">
-                                    <Btn size="sm" variant="soft" @click="s.has_qr ? qr('regenerate', s) : qr('generate', s)">{{ s.has_qr ? 'QR baru' : 'Buat QR' }}</Btn>
+                                    <Btn v-if="!isTeacherMode" size="sm" variant="soft" @click="s.has_qr ? qr('regenerate', s) : qr('generate', s)">{{ s.has_qr ? 'QR baru' : 'Buat QR' }}</Btn>
                                     <Btn v-if="s.state === 'changed'" size="sm" variant="soft" @click="reset(s)">Reset sandi</Btn>
                                     <Btn v-else size="sm" variant="soft" @click="regenerateOne(s)">{{ s.state === 'ready' ? 'Sandi baru' : 'Buat sandi' }}</Btn>
-                                    <a v-if="s.has_qr || s.state === 'ready'" :href="route('credentials.print', { class_id: classId, user_id: s.id })" target="_blank" rel="noopener"
+                                    <a v-if="(s.has_qr && !isTeacherMode) || s.state === 'ready'" :href="route('credentials.print', { ...scopeData, user_id: s.id })" target="_blank" rel="noopener"
                                         :class="linkBtn" class="h-9 bg-surface2 px-3 text-sm hover:bg-line/60">🖨️ Kartu</a>
                                 </div>
                             </td>

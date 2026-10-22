@@ -9,7 +9,7 @@ return [
     */
     'brand' => env('APP_NAME', 'Madingo'),
 
-    'version' => '0.2.0-alpha.5',
+    'version' => '0.2.0-alpha.9',
 
     'tenant' => [
         // single | domain

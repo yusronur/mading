@@ -99,6 +99,7 @@ class Gamify
             }
 
             $notices = $level->notices ?? [];
+            $priorIds = array_column($notices, 'id');
             $notices[] = ['id' => (string) Str::uuid7(), 'type' => 'xp', 'points' => $allowed, 'label' => config("gamify.reasons.{$reason}", $reason)];
 
             $before = $level->level;
@@ -113,6 +114,7 @@ class Gamify
 
             $level->notices = $this->earnBadges($user, $level, $notices);
             $level->save();
+            $this->bell($user, $level->notices, $priorIds);
 
             return $allowed;
         });
@@ -175,6 +177,25 @@ class Gamify
     }
 
     /** Beri lencana yang syaratnya baru terpenuhi. Mengembalikan daftar pemberitahuan yang diperbarui. */
+    /** Level dan lencana baru juga dicatat di lonceng (tanpa push; sudah ada toast). */
+    private function bell(User $user, array $notices, array $priorIds): void
+    {
+        try {
+            foreach ($notices as $n) {
+                if (in_array($n['id'], $priorIds, true) || ! in_array($n['type'], ['level', 'badge'], true)) {
+                    continue;
+                }
+                app(\App\Modules\Notify\Notify::class)->send(
+                    $user, 'reward',
+                    $n['type'] === 'level' ? "Naik ke level {$n['level']}: {$n['title']}" : "Lencana baru: {$n['name']} {$n['icon']}",
+                    null, route('gamify.me', [], false), $n['type'].':'.($n['level'] ?? $n['badge']),
+                );
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
     private function earnBadges(User $user, UserLevel $level, array $notices): array
     {
         $have = UserBadge::where('user_id', $user->id)->pluck('badge')->all();

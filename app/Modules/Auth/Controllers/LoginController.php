@@ -18,7 +18,7 @@ class LoginController extends Controller
 {
     public function create(): Response
     {
-        return Inertia::render('Auth/Login');
+        return Inertia::render('Auth/Login', ['reset_enabled' => \App\Modules\Auth\PasswordReset::mailConfigured()]);
     }
 
     public function store(Request $request): RedirectResponse

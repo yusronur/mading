@@ -2,6 +2,7 @@
 import { reactive, ref, watch } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import Field from '@/Components/Field.vue';
+import DateField from '@/Components/DateField.vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Card from '@/Components/Card.vue';
 import Btn from '@/Components/Btn.vue';
@@ -58,6 +59,16 @@ const add = useForm({ role: 'student', username: '', name: '', gender: '', class
 const openAdd = () => { add.reset(); add.clearErrors(); adding.value = true; };
 const submitAdd = () => add.post(route('admin.users.store'), { preserveScroll: true, onSuccess: () => { adding.value = false; } });
 
+// Ubah identitas pengguna
+const editing = ref(null);
+const edit = useForm({ username: '', name: '', email: '', gender: '', birth_date: '', class_id: '' });
+const openEdit = (u) => {
+    edit.clearErrors();
+    edit.defaults({ username: u.username, name: u.name, email: u.email ?? '', gender: u.gender ?? '', birth_date: u.birth_date ?? '', class_id: u.class_id ?? '' }).reset();
+    editing.value = u;
+};
+const submitEdit = () => edit.put(route('admin.users.update', editing.value.id), { preserveScroll: true, onSuccess: () => { editing.value = null; } });
+
 const roleTone = { school_admin: 'warning', teacher: 'accent', student: 'neutral' };
 </script>
 
@@ -113,6 +124,7 @@ const roleTone = { school_admin: 'warning', teacher: 'accent', student: 'neutral
                                 <div class="flex justify-end gap-1.5">
                                     <a v-if="u.has_initial_password" :href="route('credentials.print', { user_id: u.id })" target="_blank" rel="noopener"
                                         class="inline-flex h-9 items-center rounded-[calc(var(--m-radius)*0.7)] bg-surface2 px-3 text-sm font-semibold hover:bg-line/60">🖨️ Kartu</a>
+                                    <Btn size="sm" variant="soft" :data-testid="`edit-${u.username}`" @click="openEdit(u)">✏️ Edit</Btn>
                                     <Btn size="sm" variant="soft" @click="reset(u)">Reset sandi</Btn>
                                     <Btn size="sm" :variant="u.status === 'active' ? 'danger' : 'soft'" @click="toggle(u)">{{ u.status === 'active' ? 'Nonaktifkan' : 'Aktifkan' }}</Btn>
                                 </div>
@@ -148,6 +160,28 @@ const roleTone = { school_admin: 'warning', teacher: 'accent', student: 'neutral
                 </div>
                 <p class="text-sm text-muted">Sandi awal dibuat otomatis dan ditampilkan setelah disimpan; wajib diganti saat masuk pertama.</p>
                 <Btn type="submit" block size="lg" :loading="add.processing">Buat akun</Btn>
+            </form>
+        </Modal>
+
+        <Modal :show="!!editing" title="Edit pengguna" persistent @close="editing = null">
+            <form v-if="editing" class="space-y-4" @submit.prevent="submitEdit">
+                <p class="text-sm font-semibold text-muted">Peran: <Badge :tone="roleTone[editing.role]">{{ editing.role_label }}</Badge> (peran tidak bisa diubah di sini)</p>
+                <Field v-model="edit.name" label="Nama lengkap" :error="edit.errors.name" autocomplete="off" />
+                <Field v-model="edit.username" :label="editing.role === 'student' ? 'NISN' : 'NIP / username'" :error="edit.errors.username" autocomplete="off" autocapitalize="none"
+                    hint="Dipakai untuk masuk. Mengubahnya tidak mengubah sandi." />
+                <Field v-model="edit.email" type="email" label="Email (untuk reset sandi)" :error="edit.errors.email" autocomplete="off" autocapitalize="none" placeholder="nama@gmail.com"
+                    hint="Kosongkan bila tidak punya. Tautan reset sandi dikirim ke email ini." />
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <Field v-model="edit.gender" as="select" label="Jenis kelamin" :error="edit.errors.gender">
+                        <option value="">–</option><option value="L">Laki-laki</option><option value="P">Perempuan</option>
+                    </Field>
+                    <DateField v-model="edit.birth_date" label="Tanggal lahir" placeholder="Pilih tanggal lahir" :error="edit.errors.birth_date" />
+                </div>
+                <Field v-if="editing.role === 'student'" v-model="edit.class_id" as="select" label="Rombel" :error="edit.errors.class_id">
+                    <option value="">(tidak diubah)</option>
+                    <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+                </Field>
+                <Btn type="submit" block size="lg" :loading="edit.processing" data-testid="save-edit">Simpan perubahan</Btn>
             </form>
         </Modal>
 

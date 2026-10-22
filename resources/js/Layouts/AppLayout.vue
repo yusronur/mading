@@ -1,10 +1,12 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import Flash from '@/Components/Flash.vue';
 import ConfirmDialog from '@/Components/ConfirmDialog.vue';
 import Avatar from '@/Components/Avatar.vue';
 import RewardToaster from '@/Components/Gamify/RewardToaster.vue';
+import Bell from '@/Components/Notify/Bell.vue';
+import { syncDevice, disablePush } from '@/lib/push';
 import { applyTheme } from '@/lib/theme';
 
 // back: { href, label } menampilkan "← Kembali ke {label}" di atas halaman anak
@@ -27,6 +29,7 @@ const nav = computed(() => {
             { label: 'Pengguna', route: 'admin.users.index', icon: '👥', active: 'admin.users.*' },
             { label: 'Impor', route: 'admin.imports.index', icon: '📥', active: 'admin.imports.*' },
             { label: 'Kartu Akun', route: 'credentials.index', icon: '🪪', active: 'credentials.*' },
+            { label: 'Pesan', route: 'admin.push.index', icon: '📣', active: 'admin.push.*' },
             { label: 'Log', route: 'admin.audit.index', icon: '📜', active: 'admin.audit.*' },
             { label: 'Rombel', route: 'admin.classes.index', icon: '🏫', active: 'admin.classes.*' },
             { label: 'Tahun Ajaran', route: 'admin.years.index', icon: '📅', active: 'admin.years.*' },
@@ -57,7 +60,12 @@ const nav = computed(() => {
 });
 
 const isActive = (pattern) => [].concat(pattern).some((p) => route().current(p));
-const logout = () => router.post(route('logout'));
+// Perangkat bersama: keluar melepas langganan push perangkat ini agar notifikasi tidak nyasar ke pengguna berikutnya
+const logout = async () => {
+    await Promise.race([disablePush().catch(() => {}), new Promise((r) => setTimeout(r, 1500))]);
+    router.post(route('logout'));
+};
+onMounted(() => { if (user.value && user.value.role !== 'guest') syncDevice(page.props.notify?.key); });
 </script>
 
 <template>
@@ -90,7 +98,9 @@ const logout = () => router.post(route('logout'));
                     </Link>
                 </nav>
 
-                <div class="relative ml-auto">
+                <div class="ml-auto flex items-center gap-2">
+                <Bell v-if="user && user.role !== 'guest'" />
+                <div class="relative">
                     <button class="flex items-center gap-2 rounded-full bg-surface2 py-1 pr-3 pl-1" @click="menuOpen = !menuOpen" :aria-expanded="menuOpen">
                         <Avatar :avatar="user?.avatar" :frame="user?.frame" :initials="user?.initials" :size="34" />
                         <span class="hidden max-w-36 truncate text-sm font-bold sm:block">{{ user?.name }}</span>
@@ -107,6 +117,7 @@ const logout = () => router.post(route('logout'));
                         </template>
                         <button class="block w-full rounded-lg px-3 py-2 text-left font-semibold text-danger hover:bg-surface2" @click="logout">Keluar</button>
                     </div>
+                </div>
                 </div>
             </div>
         </header>

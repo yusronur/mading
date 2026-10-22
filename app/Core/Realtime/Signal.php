@@ -23,6 +23,7 @@ class Signal
         } catch (Throwable $e) {
             Cache::put('madingo:realtime-down', true, 30);
             report($e);
+            \App\Modules\Notify\Notify::alertAdmins('Realtime (Reverb) tidak terjangkau', 'Papan dan kuis memakai pengecekan berkala sementara. Periksa layanan Reverb di server.', 'reverb');
         }
     }
 }

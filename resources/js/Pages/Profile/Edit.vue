@@ -12,6 +12,8 @@ const chosen = (list, key) => list.find((i) => i.key === key);
 const emoji = () => chosen(props.catalog.avatars, form.avatar)?.emoji;
 const ring = () => chosen(props.catalog.frames, form.frame)?.ring;
 const form = useForm({ ...props.preferences });
+const mail = useForm({ email: props.profile.email ?? '', current_password: '' });
+const saveEmail = () => mail.put(route('profile.email'), { preserveScroll: true, onFinish: () => mail.reset('current_password') });
 const save = () => form.put(route('profile.preferences'), { preserveScroll: true });
 const modes = [
     { key: 'system', label: 'Ikuti HP', icon: '📱' },
@@ -32,6 +34,26 @@ const pv = (t) => {
         <Card class="mb-6">
             <p class="text-2xl font-bold">{{ profile.name }}</p>
             <p class="text-muted">{{ profile.class ? `${profile.username} · Kelas ${profile.class}` : profile.username }}</p>
+        </Card>
+
+        <Card class="mb-6">
+            <h2 class="mb-1 text-xl font-bold">Email untuk reset sandi</h2>
+            <p class="mb-4 text-sm text-muted">Dengan email, kamu bisa mengatur ulang sandi sendiri lewat tautan yang dikirim ke sana bila lupa sandi.</p>
+            <form class="space-y-3" @submit.prevent="saveEmail">
+                <label class="block">
+                    <span class="mb-1 block text-sm font-bold">Email</span>
+                    <input v-model="mail.email" type="email" autocomplete="email" placeholder="nama@gmail.com" data-testid="profile-email"
+                        class="h-12 w-full rounded-xl border-2 border-line bg-surface px-4 text-ink focus:border-accent focus:outline-none" />
+                    <span v-if="mail.errors.email" class="mt-1 block text-sm font-semibold text-danger">{{ mail.errors.email }}</span>
+                </label>
+                <label class="block">
+                    <span class="mb-1 block text-sm font-bold">Sandi saat ini (untuk konfirmasi)</span>
+                    <input v-model="mail.current_password" type="password" autocomplete="current-password" data-testid="profile-email-password"
+                        class="h-12 w-full rounded-xl border-2 border-line bg-surface px-4 text-ink focus:border-accent focus:outline-none" />
+                    <span v-if="mail.errors.current_password" class="mt-1 block text-sm font-semibold text-danger">{{ mail.errors.current_password }}</span>
+                </label>
+                <Btn type="submit" variant="soft" :loading="mail.processing" :disabled="!mail.current_password" data-testid="save-email">Simpan email</Btn>
+            </form>
         </Card>
 
         <form class="space-y-6" @submit.prevent="save">

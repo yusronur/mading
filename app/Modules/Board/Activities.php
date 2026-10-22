@@ -236,6 +236,23 @@ class Activities
             case 'end':
                 $a->status = 'ended';
                 break;
+            case 'pause': // timer: simpan sisa waktu, jam berhenti di semua layar
+                if ($a->type !== 'timer' || $a->status !== 'open' || ! empty($state['paused_left'])) {
+                    throw new RuntimeException('Timer tidak sedang berjalan.');
+                }
+                $left = (int) max(0, now()->diffInMilliseconds(\Illuminate\Support\Carbon::parse($state['ends_at']), false));
+                if ($left <= 0) {
+                    throw new RuntimeException('Waktu sudah habis.');
+                }
+                $state['paused_left'] = $left;
+                break;
+            case 'resume':
+                if ($a->type !== 'timer' || empty($state['paused_left'])) {
+                    throw new RuntimeException('Timer tidak sedang dijeda.');
+                }
+                $state['ends_at'] = now()->addMilliseconds((int) $state['paused_left'])->toIso8601ZuluString('millisecond');
+                unset($state['paused_left']);
+                break;
             case 'restart': // timer
                 if ($a->type !== 'timer') {
                     throw new RuntimeException('Hanya untuk timer.');
@@ -244,6 +261,7 @@ class Activities
                 $seconds = max(5, min(7200, $seconds));
                 $a->config = ['seconds' => $seconds] + $a->config;
                 $state['ends_at'] = now()->addSeconds($seconds)->toIso8601ZuluString('millisecond');
+                unset($state['paused_left']);
                 $a->status = 'open';
                 break;
             case 'spin':
@@ -280,6 +298,9 @@ class Activities
 
         if (! $pool) {
             throw new RuntimeException('Semua nama sudah terpilih. Tekan "Atur ulang" untuk mulai lagi.');
+        }
+        if (($a->config['no_repeat'] ?? true) && count($pool) === 1) {
+            throw new RuntimeException('Tinggal satu nama, otomatis terpilih. Tekan "Atur ulang" untuk mulai lagi.');
         }
 
         $index = $pool[random_int(0, count($pool) - 1)];

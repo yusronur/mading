@@ -5,6 +5,7 @@ import Btn from '@/Components/Btn.vue';
 import Field from '@/Components/Field.vue';
 import Mascot from '@/Components/Mascot.vue';
 
+defineProps({ reset_enabled: Boolean });
 const form = useForm({ username: '', password: '', remember: true });
 const submit = () => form.post(route('login.store'), { onFinish: () => form.reset('password') });
 </script>
@@ -28,7 +29,8 @@ const submit = () => form.post(route('login.store'), { onFinish: () => form.rese
                 Tetap masuk di perangkat ini (30 hari)
             </label>
             <Btn type="submit" size="lg" block :loading="form.processing">Masuk 🚀</Btn>
-            <p class="text-center text-sm text-muted">Lupa sandi? Minta wali kelas atau admin sekolah untuk mereset.</p>
+            <p v-if="reset_enabled" class="text-center text-sm text-muted">Lupa sandi? <Link :href="route('password.forgot')" class="font-bold text-ink underline" data-testid="forgot-link">Reset lewat email</Link>, atau minta wali kelas/admin.</p>
+            <p v-else class="text-center text-sm text-muted">Lupa sandi? Minta wali kelas atau admin sekolah untuk mereset.</p>
             <p class="rounded-xl bg-surface2 px-3 py-2 text-center text-sm font-semibold">📱 Punya kartu QR? Pindai saja dengan kamera HP, langsung masuk.</p>
             <p class="text-center text-sm font-semibold">Dapat kode kuis dari guru? <Link :href="route('guest.join')" class="font-bold text-ink underline">Ikut kuis tanpa akun</Link></p>
         </form>

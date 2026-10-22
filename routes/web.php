@@ -44,6 +44,12 @@ Route::post('/tamu', [GuestJoinController::class, 'store'])->middleware('throttl
 Route::middleware('guest')->group(function () {
     Route::get('/masuk', [LoginController::class, 'create'])->name('login');
     Route::post('/masuk', [LoginController::class, 'store'])->name('login.store');
+
+    // Lupa sandi lewat email
+    Route::get('/lupa-sandi', [\App\Modules\Auth\Controllers\PasswordResetController::class, 'forgot'])->name('password.forgot');
+    Route::post('/lupa-sandi', [\App\Modules\Auth\Controllers\PasswordResetController::class, 'send'])->middleware('throttle:password-reset')->name('password.send');
+    Route::get('/atur-sandi/{token}', [\App\Modules\Auth\Controllers\PasswordResetController::class, 'form'])->where('token', '[A-Za-z0-9]{48}')->name('password.reset');
+    Route::post('/atur-sandi/{token}', [\App\Modules\Auth\Controllers\PasswordResetController::class, 'update'])->where('token', '[A-Za-z0-9]{48}')->middleware('throttle:password-reset')->name('password.reset.update');
 });
 
 Route::middleware('auth')->group(function () {
@@ -53,6 +59,30 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::get('/', HomeController::class)->name('home');
+
+// PWA: nama aplikasi mengikuti sekolah; ikon dan service worker statis di public/
+Route::get('/manifest.webmanifest', function () {
+    $name = \App\Models\SchoolSetting::first()?->app_display_name ?: 'Madingo';
+
+    return response()->json([
+        'name' => $name,
+        'short_name' => mb_substr($name, 0, 12),
+        'description' => 'Papan kolaborasi dan kuis sekolah.',
+        'id' => '/',
+        'start_url' => '/',
+        'scope' => '/',
+        'display' => 'standalone',
+        'orientation' => 'any',
+        'background_color' => '#0E0B1F',
+        'theme_color' => '#0E0B1F',
+        'lang' => 'id',
+        'icons' => [
+            ['src' => '/icons/icon-192.png', 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any'],
+            ['src' => '/icons/icon-512.png', 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any'],
+            ['src' => '/icons/maskable-512.png', 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'maskable'],
+        ],
+    ])->header('Content-Type', 'application/manifest+json')->header('Cache-Control', 'public, max-age=3600');
+})->name('manifest');
 
 // Masuk dengan kartu QR (AUTH-03): tanpa middleware guest agar HP bersama bisa berganti akun
 Route::get('/masuk/qr/{token}', QrLoginController::class)->where('token', '[A-Za-z0-9]{40}')
@@ -66,7 +96,21 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::post('/prestasi/dilihat', [\App\Modules\Gamify\Controllers\GamifyController::class, 'seen'])->middleware('role:student')->name('gamify.seen');
     Route::get('/peringkat', [\App\Modules\Gamify\Controllers\GamifyController::class, 'leaderboard'])->middleware('role:student,teacher,school_admin')->name('gamify.leaderboard');
     Route::post('/peringkat/{class}/tampil', [\App\Modules\Gamify\Controllers\GamifyController::class, 'toggle'])->name('gamify.toggle');
+    Route::put('/profil/email', [ProfileController::class, 'updateEmail'])->name('profile.email');
     Route::put('/profil/tampilan', [ProfileController::class, 'updatePreferences'])->name('profile.preferences');
+
+    // Notifikasi: lonceng dan push (semua peran selain tamu)
+    Route::middleware('role:student,teacher,school_admin')->group(function () {
+        $n = \App\Modules\Notify\Controllers\NotificationController::class;
+        Route::get('/notifikasi', [$n, 'index'])->name('notifications.index');
+        Route::get('/notifikasi/ringkas', [$n, 'summary'])->middleware('throttle:sync')->name('notifications.summary');
+        Route::post('/notifikasi/baca-semua', [$n, 'readAll'])->name('notifications.read-all');
+        Route::post('/notifikasi/{id}/baca', [$n, 'read'])->where('id', '[0-9a-fA-F-]{36}')->name('notifications.read');
+        Route::put('/notifikasi/pengaturan', [$n, 'preferences'])->name('notifications.preferences');
+        Route::post('/push/langganan', [$n, 'subscribe'])->middleware('throttle:20,1')->name('push.subscribe');
+        Route::delete('/push/langganan', [$n, 'unsubscribe'])->name('push.unsubscribe');
+        Route::post('/push/uji', [$n, 'test'])->middleware('throttle:5,1')->name('push.test');
+    });
 
     // Papan
     Route::post('/papan', [BoardController::class, 'store'])->name('boards.store');
@@ -206,10 +250,17 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
 
         Route::get('/pengguna', [UserController::class, 'index'])->name('users.index');
         Route::post('/pengguna', [UserController::class, 'store'])->name('users.store');
+        Route::put('/pengguna/{user}', [UserController::class, 'update'])->name('users.update');
         Route::post('/pengguna/{user}/reset-sandi', [UserController::class, 'resetPassword'])->name('users.reset-password');
         Route::put('/pengguna/{user}/status', [UserController::class, 'updateStatus'])->name('users.status');
 
         Route::get('/log-aktivitas', [AuditController::class, 'index'])->name('audit.index');
+
+        $b = \App\Modules\Notify\Controllers\BroadcastController::class;
+        Route::get('/pesan', [$b, 'index'])->name('push.index');
+        Route::get('/pesan/cari', [$b, 'search'])->middleware('throttle:60,1')->name('push.search');
+        Route::post('/pesan/pratinjau', [$b, 'preview'])->middleware('throttle:60,1')->name('push.preview');
+        Route::post('/pesan', [$b, 'store'])->middleware('throttle:6,1')->name('push.store');
 
         Route::get('/impor', [ImportController::class, 'index'])->name('imports.index');
         Route::post('/impor', [ImportController::class, 'store'])->name('imports.store');

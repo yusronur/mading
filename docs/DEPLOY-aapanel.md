@@ -92,6 +92,20 @@ aaPanel → Cron → Shell script, tiap menit:
 cd /www/wwwroot/board.smpn1wajak.sch.id && /www/server/php/83/bin/php artisan schedule:run >> /dev/null 2>&1
 ```
 
+## 6b. Notifikasi push (Tahap 19)
+
+Lonceng notifikasi langsung jalan. Agar notifikasi juga muncul di layar HP/laptop (Web Push, gratis):
+
+```bash
+$PHP artisan madingo:vapid          # cetak 3 baris VAPID_*, tempel ke .env
+$PHP artisan config:cache
+```
+
+Syarat: HTTPS (sudah), penjadwal tiap menit (bagian 6) untuk pengingat H-1, nilai, ringkasan guru, dan pelepasan notifikasi jam tenang.
+Jangan mengganti kunci VAPID setelah dipakai: semua langganan perangkat akan terputus dan pengguna harus mengaktifkan ulang.
+Setelah itu admin bisa mematikan/menyalakan push di Pengaturan, dan mengirim pesan manual lewat menu Pesan.
+iPhone/iPad hanya menerima push setelah aplikasi dipasang ke layar utama (iOS 16.4+).
+
 ## 7. Pembaruan (rilis berikutnya)
 
 ```bash

@@ -112,11 +112,12 @@ class BoardActivityTest extends TestCase
         $this->actingAs($this->ani)->postJson(route('activities.act', [$this->board, $a['id']]), ['action' => 'spin'])->assertForbidden();
 
         $winners = [];
-        for ($i = 0; $i < 3; $i++) {
+        for ($i = 0; $i < 2; $i++) {
             $s = $this->act($a['id'], 'spin')->assertOk()->json('activity.state.spin');
             $winners[] = $s['index'];
         }
-        $this->assertCount(3, array_unique($winners), 'tanpa pengulangan');
+        $this->assertCount(2, array_unique($winners), 'tanpa pengulangan');
+        // Tinggal satu nama: otomatis terpilih, tidak perlu diputar
         $this->act($a['id'], 'spin')->assertStatus(422);
 
         $this->act($a['id'], 'reset_wheel')->assertOk();
@@ -153,6 +154,19 @@ class BoardActivityTest extends TestCase
 
         $this->act($t['id'], 'restart', ['seconds' => 30])->assertOk();
         $this->assertEqualsWithDelta(30, strtotime($this->current($this->ani)['state']['ends_at']) - time(), 3);
+
+        // Jeda menyimpan sisa waktu; lanjut memulai lagi dari sisa itu
+        $this->act($t['id'], 'resume')->assertStatus(422);
+        $this->act($t['id'], 'pause')->assertOk();
+        $paused = $this->current($this->ani)['state'];
+        $this->assertEqualsWithDelta(30000, $paused['paused_left'], 3000);
+        $this->act($t['id'], 'pause')->assertStatus(422);
+        $this->travel(20)->seconds();
+        $this->act($t['id'], 'resume')->assertOk();
+        $after = $this->current($this->ani)['state'];
+        $this->assertArrayNotHasKey('paused_left', $after);
+        $this->assertEqualsWithDelta(30, strtotime($after['ends_at']) - now()->timestamp, 3); // 20 detik jeda tidak mengurangi sisa
+        $this->travelBack();
 
         // Aktivitas baru menggantikan yang lama
         $p = $this->start(['type' => 'poll', 'question' => 'Q', 'options' => ['a', 'b']])->json('activity');

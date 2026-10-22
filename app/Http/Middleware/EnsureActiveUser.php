@@ -21,6 +21,12 @@ class EnsureActiveUser
             return redirect()->route('login')->with('error', 'Akun Anda tidak aktif. Hubungi admin sekolah.');
         }
 
+        // Penanda "sedang online" untuk notifikasi (cukup ditulis tiap ~45 detik)
+        if ($user && $request->hasSession() && now()->timestamp - (int) $request->session()->get('_seen', 0) > 45) {
+            $request->session()->put('_seen', now()->timestamp);
+            \App\Modules\Notify\Notify::markOnline($user->id);
+        }
+
         return $next($request);
     }
 }

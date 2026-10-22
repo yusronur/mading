@@ -29,12 +29,21 @@ class LiveController extends Controller
             'allow_guests' => ['boolean'],
             'leaderboard' => ['boolean'],
             'shuffle_questions' => ['boolean'],
+            'notify_class_ids' => ['nullable', 'array', 'max:20'],
+            'notify_class_ids.*' => ['uuid', Rule::exists('classes', 'id')->where('school_id', app(\App\Core\Tenancy\TenantContext::class)->id())],
         ], [], ['seconds' => 'waktu per soal', 'teams' => 'jumlah tim']);
 
         try {
             $session = $this->live->create($quiz, $request->user(), $data);
         } catch (RuntimeException $e) {
             return back()->with('error', $e->getMessage());
+        }
+        if (! empty($data['notify_class_ids'])) {
+            try {
+                app(\App\Modules\Notify\Triggers::class)->liveStarted($session, $data['notify_class_ids']);
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
         AuditLog::record('quiz.live_started', null, ['quiz' => $quiz->title, 'code' => $session->code]);
 

@@ -96,7 +96,7 @@ const statusLabel = { open: 'Berjalan', scheduled: 'Terjadwal', closed: 'Ditutup
             </form>
         </Modal>
         <QuizShareDialog :show="!!sharing" :session="sharing" @close="sharing = null" />
-        <LiveStartDialog :show="!!going" :quiz="going" @close="going = null" />
+        <LiveStartDialog :show="!!going" :quiz="going" :classes="classes" @close="going = null" />
         <AssignDialog :show="!!assigning" :quiz="assigning" :classes="classes" @close="assigning = null" />
     </AppLayout>
 </template>

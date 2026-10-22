@@ -55,8 +55,9 @@ class AssignmentController extends Controller
         if ($public) {
             $targets[] = null;
         }
+        $created = [];
         foreach ($targets as $classId) {
-            QuizSession::create([
+            $created[] = QuizSession::create([
                 'quiz_id' => $quiz->id,
                 'host_id' => $request->user()->id,
                 'class_id' => $classId,
@@ -67,6 +68,12 @@ class AssignmentController extends Controller
                 'settings' => $classId === null && ! empty($data['allow_guests']) ? $settings + ['allow_guests' => true] : $settings,
                 'questions' => $questions,
             ]);
+        }
+
+        try {
+            app(\App\Modules\Notify\Triggers::class)->quizAssigned($created);
+        } catch (\Throwable $e) {
+            report($e);
         }
 
         $n = count(array_filter($targets));

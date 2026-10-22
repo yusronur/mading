@@ -25,6 +25,7 @@ class ProfileController extends Controller
                 'name' => $user->name,
                 'username' => $user->username,
                 'class' => $user->isStudent() ? $user->currentClass()?->name : null,
+                'email' => $user->email,
             ],
             'preferences' => [
                 'theme_id' => $pref?->theme_id,
@@ -50,6 +51,25 @@ class ProfileController extends Controller
                     ],
                 ]),
         ]);
+    }
+
+    /** Email untuk reset sandi. Mengganti/menghapus email butuh sandi saat ini agar sesi yang terbajak tidak bisa mengalihkan reset. */
+    public function updateEmail(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        $data = $request->validate([
+            'email' => ['nullable', 'string', 'email:rfc', 'max:150'],
+            'current_password' => ['required', 'string'],
+        ], ['email.email' => 'Format email tidak valid.'], ['current_password' => 'sandi saat ini']);
+
+        if (! \Illuminate\Support\Facades\Hash::check($data['current_password'], $user->password)) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['current_password' => 'Sandi saat ini tidak sesuai.']);
+        }
+
+        $user->forceFill(['email' => ! empty($data['email']) ? mb_strtolower(trim($data['email'])) : null])->save();
+        \App\Models\AuditLog::record('user.email_changed', $user, ['username' => $user->username]);
+
+        return back()->with('success', $user->email ? 'Email disimpan. Kamu bisa reset sandi lewat email ini.' : 'Email dihapus.');
     }
 
     public function updatePreferences(Request $request, Gamify $gamify): RedirectResponse

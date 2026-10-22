@@ -24,6 +24,7 @@ const pct = (i) => (total.value ? Math.round(((results.value?.[i] ?? 0) / total.
 
 <template>
     <div class="space-y-3">
+        <p v-if="!open" class="text-center" data-testid="poll-closed"><span class="inline-block rounded-full bg-danger/15 px-4 py-1 font-display font-bold text-danger" :class="big ? 'text-[min(3.4vh,3vw)]' : 'text-base'">🔒 (Ditutup)</span></p>
         <p class="text-center font-display font-bold" :class="big ? 'text-[min(5vh,4vw)] leading-tight' : 'text-2xl'">{{ a.config.question }}</p>
         <ul class="space-y-2.5" :class="big ? 'mx-auto max-w-5xl' : ''">
             <li v-for="(o, i) in options" :key="o.id">
@@ -39,7 +40,7 @@ const pct = (i) => (total.value ? Math.round(((results.value?.[i] ?? 0) / total.
         <p class="text-center text-sm font-semibold text-muted" :class="big ? '!text-2xl' : ''">
             <template v-if="results">{{ total }} suara</template>
             <template v-else>{{ a.responses }} suara masuk · hasil tampil setelah ditutup</template>
-            <template v-if="!open"> · poll ditutup</template>
+            <template v-if="!open"> · (ditutup)</template>
         </p>
     </div>
 </template>

@@ -41,15 +41,22 @@ export function useActivity(boardId, initial, channel) {
     let tick = null;
     let stop = () => {};
 
+    // Sinyal yang datang saat pengambilan sedang berjalan tidak boleh hilang: data yang sedang
+    // diambil bisa saja dibaca sebelum perubahan terakhir (mis. jeda timer), jadi ulangi sekali lagi.
     const refresh = () => {
-        if (s.inflight) return s.inflight;
-        s.inflight = getJson(route('activities.show', boardId)).then((p) => apply(s, p)).catch(() => {}).finally(() => { s.inflight = null; });
+        if (s.inflight) { s.again = true; return s.inflight; }
+        s.inflight = getJson(route('activities.show', boardId)).then((p) => apply(s, p)).catch(() => {}).finally(() => {
+            s.inflight = null;
+            if (s.again) { s.again = false; refresh(); }
+        });
         return s.inflight;
     };
 
     const schedule = () => {
         clearTimeout(poll);
-        const ms = document.hidden ? 15000 : wsState.value === 'connected' ? 15000 : 3000;
+        // Sinyal WebSocket bisa terlewat (putus sebentar, server dimulai ulang), jadi saat ada aktivitas
+        // yang sedang tampil tetap cek tiap 4 detik; tanpa aktivitas cukup 15 detik bila WebSocket tersambung.
+        const ms = document.hidden ? 15000 : s.activity.value ? (wsState.value === 'connected' ? 4000 : 3000) : wsState.value === 'connected' ? 15000 : 3000;
         poll = setTimeout(async () => { await refresh(); schedule(); }, ms);
     };
 

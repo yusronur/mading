@@ -2,6 +2,47 @@
 
 Format mengikuti Blueprint Bab 17.2. Versi memakai SemVer (`0.x` selama Fase 0-3).
 
+## [0.2.0-alpha.9] - 2026-10-22
+
+### Ditambahkan (Tahap 19: PWA dan notifikasi)
+- Lonceng notifikasi di header untuk admin, guru, dan siswa: angka belum dibaca, panel ringkas, halaman Notifikasi dengan riwayat 30 hari, tandai dibaca.
+- Madingo bisa dipasang ke layar utama (PWA): manifest mengikuti nama sekolah, ikon, service worker, halaman "tidak ada koneksi". Data pengguna tidak pernah disimpan di cache perangkat.
+- Web Push gratis tanpa layanan pihak ketiga (enkripsi RFC 8291 dan VAPID memakai OpenSSL bawaan PHP). Pengguna mengaktifkan per perangkat dan memilih jenis kabar yang dikirim.
+- Aturan anti-banjir: maksimal 5 push per orang per hari, jam tenang 21.00-06.00 (ditahan, dikirim sebagai satu ringkasan pagi), digabung bila beberapa sekaligus, kuis live tidak dipush ke siswa yang sedang online.
+- Push siswa: kuis atau tugas baru di rombelnya, pengingat tenggat H-1 (hanya yang belum mengumpulkan), nilai keluar setelah tugas ditutup, kuis live dimulai (guru memilih rombel di dialog Mulai live).
+- Push guru: ringkasan pengumpulan harian. Admin: masalah sistem (mis. Reverb tidak terjangkau).
+- Komentar, suka, pengumpulan, level dan lencana hanya masuk lonceng (tanpa push), digabung per kartu atau tugas.
+- Admin: menu Pesan untuk mengirim pesan manual ke satu orang, semua guru, semua siswa, satu rombel, atau semua, dengan pratinjau jumlah penerima, konfirmasi, jangkauan push, dan riwayat.
+- Pengaturan sekolah: saklar push. Perintah baru `madingo:vapid` (buat kunci) dan `madingo:notify` (pekerjaan terjadwal).
+
+### Keamanan
+- Endpoint langganan push hanya diterima dari layanan push resmi peramban (mencegah server dipakai menghubungi alamat sembarang).
+- HP bersama: langganan berpindah ke akun yang sedang masuk, dan keluar akun melepas langganan perangkat itu.
+
+## [0.2.0-alpha.8] - 2026-10-22
+
+### Diperbaiki
+- Timer: jeda/lanjut tidak lagi terlewat di layar siswa (sinyal yang datang saat pengambilan data berjalan kini diulang, dan layar yang menampilkan aktivitas mengecek tiap 4 detik sebagai cadangan).
+- Spin wheel (tanpa pengulangan): sisa satu nama otomatis terpilih, tombol Putar disembunyikan; server menolak putaran untuk satu nama terakhir.
+- Word cloud: tombol ✕ hapus hanya tampil saat kursor di atas kata.
+
+## [0.2.0-alpha.7] - 2026-10-22
+
+### Ditambah
+- Reset sandi lewat email: tautan "Lupa sandi" di halaman masuk (tampil bila SMTP dikonfigurasi). Token acak sekali pakai, berlaku 60 menit, hanya hash disimpan; maksimal 3 permintaan per akun per jam; pesan sama untuk akun yang ada maupun tidak (tidak membocorkan daftar akun). Setelah sandi baru dibuat, semua sesi perangkat lain dikeluarkan.
+- Pengguna bisa mengisi email sendiri di halaman Profil (butuh sandi saat ini); admin bisa mengisinya lewat tombol Edit.
+- Admin: tombol **Edit** di menu Pengguna untuk mengubah nama, NISN/username, email, jenis kelamin, tanggal lahir, dan rombel siswa (tercatat di log aktivitas).
+- Kartu akun: pilihan peran **Siswa / Guru**. Admin bisa membuat sandi awal dan mencetak kartu kolektif seluruh guru (kartu guru tanpa QR). Wali kelas tetap hanya mengelola siswa rombelnya.
+- Tabel `password_resets` (RLS). Pengaturan SMTP di `.env` (lihat `.env.example`).
+
+## [0.2.0-alpha.6] - 2026-10-22
+
+### Diubah
+- Spin wheel: teks nama lebih besar dan menyesuaikan panjang nama dan jumlah irisan. Pada mode "tidak terpilih dua kali", nama yang sudah terpilih keluar dari roda setelah putaran selesai.
+- Poll yang sudah ditutup menampilkan label "(Ditutup)".
+- Word cloud: kata tidak lagi dihapus dengan mengklik kata; hapus hanya lewat tombol ✕ di pojok kata, hover hanya menyorot kata.
+- Timer: tombol Jeda/Lanjutkan (sisa waktu tersimpan di server, semua layar menampilkan overlay "Dijeda").
+
 ## [0.2.0-alpha.5] - 2026-10-22
 
 ### Ditambah (tahap 16)
