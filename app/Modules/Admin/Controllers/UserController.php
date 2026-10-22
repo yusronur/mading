@@ -10,6 +10,8 @@ use App\Models\User;
 use App\Modules\Admin\InitialPasswords;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -57,6 +59,62 @@ class UserController extends Controller
             'credential' => $this->credentialFromSession($request, $year),
             'classes' => $year ? SchoolClass::where('academic_year_id', $year->id)->orderBy('name')->get(['id', 'name']) : [],
         ]);
+    }
+
+    /** Tambah guru atau siswa satu per satu (tanpa impor). Sandi awal dibuat otomatis. */
+    public function store(Request $request, InitialPasswords $passwords): RedirectResponse
+    {
+        $year = AcademicYear::active();
+        $role = $request->input('role');
+
+        $data = $request->validate([
+            'role' => ['required', Rule::in([User::ROLE_STUDENT, User::ROLE_TEACHER])],
+            'username' => ['required', 'string', 'min:3', 'max:60', 'regex:/^[A-Za-z0-9._-]+$/'],
+            'name' => ['required', 'string', 'min:2', 'max:150'],
+            'gender' => ['nullable', Rule::in(['L', 'P'])],
+            'class_id' => [
+                $role === User::ROLE_STUDENT && $year ? 'required' : 'nullable', 'uuid',
+                Rule::exists('classes', 'id')->where('school_id', $request->user()->school_id)->where('academic_year_id', $year?->id),
+            ],
+        ], [
+            'username.regex' => 'Username hanya boleh huruf, angka, titik, garis bawah, dan strip (tanpa spasi).',
+            'class_id.required' => 'Pilih rombel siswa.',
+        ], ['username' => 'NISN/username', 'name' => 'nama', 'class_id' => 'rombel']);
+
+        $username = trim($data['username']);
+        if (User::withTrashed()->whereRaw('lower(username) = ?', [mb_strtolower($username)])->exists()) {
+            return back()->withErrors(['username' => 'NISN/username ini sudah dipakai (termasuk akun yang dihapus).'])->withInput();
+        }
+
+        $user = DB::transaction(function () use ($data, $username, $passwords) {
+            $user = new User([
+                'username' => $username,
+                'name' => trim(strip_tags($data['name'])),
+                'role' => $data['role'],
+                'gender' => $data['gender'] ?? null,
+                'status' => 'active',
+            ]);
+            $user->password = 'x'; // diganti sandi awal di bawah
+            $user->save();
+            $passwords->issue($user);
+
+            if (! empty($data['class_id'])) {
+                if ($data['role'] === User::ROLE_STUDENT) {
+                    DB::table('class_members')->insert([
+                        'class_id' => $data['class_id'], 'user_id' => $user->id, 'school_id' => $user->school_id,
+                        'created_at' => now(), 'updated_at' => now(),
+                    ]);
+                } else {
+                    SchoolClass::whereKey($data['class_id'])->update(['homeroom_teacher_id' => $user->id]);
+                }
+            }
+
+            return $user;
+        });
+
+        AuditLog::record('user.created', $user, ['username' => $user->username, 'role' => $user->role]);
+
+        return back()->with('credential_for', $user->id)->with('success', "Akun {$user->name} dibuat. Catat atau cetak sandi awalnya.");
     }
 
     public function resetPassword(Request $request, User $user, InitialPasswords $passwords): RedirectResponse

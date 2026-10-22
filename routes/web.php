@@ -185,6 +185,7 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         Route::put('/rombel/{class}', [ClassController::class, 'update'])->name('classes.update');
 
         Route::get('/pengguna', [UserController::class, 'index'])->name('users.index');
+        Route::post('/pengguna', [UserController::class, 'store'])->name('users.store');
         Route::post('/pengguna/{user}/reset-sandi', [UserController::class, 'resetPassword'])->name('users.reset-password');
         Route::put('/pengguna/{user}/status', [UserController::class, 'updateStatus'])->name('users.status');
 

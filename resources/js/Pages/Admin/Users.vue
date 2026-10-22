@@ -1,6 +1,7 @@
 <script setup>
 import { reactive, ref, watch } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, useForm } from '@inertiajs/vue3';
+import Field from '@/Components/Field.vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Card from '@/Components/Card.vue';
 import Btn from '@/Components/Btn.vue';
@@ -51,6 +52,12 @@ const copyPassword = async () => {
     const ok = await copyText(shown.value.password);
     toast(ok ? 'Sandi awal tersalin' : 'Gagal menyalin, salin manual', ok ? 'success' : 'error');
 };
+// Tambah pengguna manual (tanpa impor)
+const adding = ref(false);
+const add = useForm({ role: 'student', username: '', name: '', gender: '', class_id: '' });
+const openAdd = () => { add.reset(); add.clearErrors(); adding.value = true; };
+const submitAdd = () => add.post(route('admin.users.store'), { preserveScroll: true, onSuccess: () => { adding.value = false; } });
+
 const roleTone = { school_admin: 'warning', teacher: 'accent', student: 'neutral' };
 </script>
 
@@ -58,6 +65,7 @@ const roleTone = { school_admin: 'warning', teacher: 'accent', student: 'neutral
     <Head title="Pengguna" />
     <AppLayout title="Pengguna" wide>
         <template #actions>
+            <Btn @click="openAdd">➕ Tambah pengguna</Btn>
             <Btn :href="route('credentials.index')" variant="soft">🪪 Kartu akun</Btn>
             <Btn :href="route('admin.imports.index')" variant="soft">📥 Impor</Btn>
         </template>
@@ -119,6 +127,29 @@ const roleTone = { school_admin: 'warning', teacher: 'accent', student: 'neutral
             <p class="text-sm text-muted">{{ users.total }} pengguna</p>
             <Pagination :links="users.links" />
         </div>
+
+        <Modal :show="adding" title="Tambah pengguna" persistent @close="adding = false">
+            <form class="space-y-4" @submit.prevent="submitAdd">
+                <div class="grid grid-cols-2 gap-2" role="group" aria-label="Peran">
+                    <button v-for="r in [['student', 'Siswa'], ['teacher', 'Guru']]" :key="r[0]" type="button" class="rounded-xl border-2 px-3 py-2.5 font-bold"
+                        :class="add.role === r[0] ? 'border-accent bg-accent text-on-accent' : 'border-line'" :aria-pressed="add.role === r[0]" @click="add.role = r[0]">{{ r[1] }}</button>
+                </div>
+                <Field v-model="add.username" :label="add.role === 'student' ? 'NISN' : 'NIP / username'" :error="add.errors.username" autocomplete="off" autocapitalize="none"
+                    :placeholder="add.role === 'student' ? 'mis. 0123456789' : 'mis. 198001012005011001 atau budi.s'" hint="Dipakai untuk masuk. Huruf, angka, titik, garis bawah, strip." />
+                <Field v-model="add.name" label="Nama lengkap" :error="add.errors.name" autocomplete="off" />
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <Field v-model="add.gender" as="select" label="Jenis kelamin (opsional)">
+                        <option value="">–</option><option value="L">Laki-laki</option><option value="P">Perempuan</option>
+                    </Field>
+                    <Field v-model="add.class_id" as="select" :label="add.role === 'student' ? 'Rombel' : 'Wali kelas (opsional)'" :error="add.errors.class_id">
+                        <option value="">{{ add.role === 'student' ? 'Pilih rombel' : 'Bukan wali kelas' }}</option>
+                        <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+                    </Field>
+                </div>
+                <p class="text-sm text-muted">Sandi awal dibuat otomatis dan ditampilkan setelah disimpan; wajib diganti saat masuk pertama.</p>
+                <Btn type="submit" block size="lg" :loading="add.processing">Buat akun</Btn>
+            </form>
+        </Modal>
 
         <Modal :show="!!shown" title="Sandi awal baru" @close="shown = null">
             <div v-if="shown" class="space-y-4">

@@ -2,6 +2,14 @@
 
 Format mengikuti Blueprint Bab 17.2. Versi memakai SemVer (`0.x` selama Fase 0-3).
 
+## [0.1.4] - 2026-10-22
+
+Tanpa migrasi; jalankan `npm run build`.
+
+- Admin bisa menambah guru atau siswa satu per satu tanpa impor (Pengguna, tombol "Tambah pengguna"):
+  NISN/username, nama, jenis kelamin, rombel (siswa wajib; guru opsional sebagai wali kelas). Sandi awal
+  dibuat otomatis, tampil di dialog dan bisa dicetak sebagai kartu akun. Username kembar ditolak.
+
 ## [0.1.3] - 2026-10-22
 
 Tanpa migrasi; jalankan `npm run build`.
