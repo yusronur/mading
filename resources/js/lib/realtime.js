@@ -30,7 +30,7 @@ export async function getEcho(config) {
                 wssPort: config.port,
                 wsPath: config.path || '',
                 forceTLS: tls,
-                enabledTransports: tls ? ['wss'] : ['ws'],
+                enabledTransports: ['ws', 'wss'],   // pusher-js memakai nama 'ws' juga untuk koneksi TLS (forceTLS)
                 disableStats: true,
                 // Otorisasi kanal privat memakai sesi + XSRF yang sama dengan aplikasi
                 authorizer: (channel) => ({
