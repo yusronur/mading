@@ -6,11 +6,13 @@ import Field from '@/Components/Field.vue';
 import Modal from '@/Components/Modal.vue';
 import RichText from '@/Components/Editor/RichText.vue';
 import LinkPreview from '@/Components/Board/LinkPreview.vue';
+import DrawPad from '@/Components/Board/DrawPad.vue';
+import VoiceRecorder from '@/Components/Board/VoiceRecorder.vue';
 import { CARD_COLORS } from '@/lib/colors';
 import { upload, postJson, deleteJson, formatBytes } from '@/lib/http';
 import { toast } from '@/lib/toast';
 
-/** Form tempel/ubah kartu: teks berformat, warna, lampiran, tautan. */
+/** Form tempel/ubah kartu: teks berformat, warna, lampiran, tautan, coretan, rekaman suara, daftar centang. */
 const props = defineProps({
     show: Boolean,
     board: Object,
@@ -20,7 +22,9 @@ const props = defineProps({
 });
 const emit = defineEmits(['close']);
 
-const form = useForm({ title: '', body: '', color: null, link: '', is_anonymous: false, section_id: null, attachment_ids: [] });
+const form = useForm({ title: '', body: '', color: null, link: '', is_anonymous: false, section_id: null, attachment_ids: [], checklist: [] });
+const tool = ref(null); // null | 'draw' | 'voice'
+const showList = ref(false);
 const files = ref([]); // { key, id?, name, size, kind, thumb_url, progress, error }
 const preview = ref(null);
 const previewLoading = ref(false);
@@ -38,7 +42,10 @@ watch(() => props.show, (open) => {
         is_anonymous: p?.is_anonymous ?? false,
         section_id: p?.section_id ?? props.sectionId ?? props.sections[0]?.id ?? null,
         attachment_ids: [],
+        checklist: (p?.checklist ?? []).map((i) => ({ ...i })),
     }).reset();
+    tool.value = null;
+    showList.value = !!p?.checklist?.length;
     form.clearErrors();
     files.value = (p?.attachments ?? []).map((a) => ({ key: a.id, ...a, progress: 100 }));
     preview.value = p?.link ? { ...p.link, image: p.link.image_url } : null;
@@ -47,9 +54,13 @@ watch(() => props.show, (open) => {
 
 const uploading = computed(() => files.value.some((f) => f.progress < 100 && !f.error));
 
-const pick = async (event) => {
+const pick = (event) => {
     const list = [...event.target.files];
     event.target.value = '';
+    addFiles(list);
+};
+
+const addFiles = async (list) => {
     for (const file of list) {
         if (files.value.length >= 10) { toast('Maksimal 10 lampiran per kartu.', 'error'); break; }
         const item = { key: `${Date.now()}-${Math.random()}`, name: file.name, size: file.size, kind: file.type.split('/')[0], progress: 0, local: file.type.startsWith('image/') ? URL.createObjectURL(file) : null };
@@ -64,6 +75,17 @@ const pick = async (event) => {
         }
     }
 };
+
+const fromTool = (file) => { tool.value = null; addFiles([file]); };
+
+// Daftar centang
+const addItem = (after = form.checklist.length - 1) => {
+    if (form.checklist.length >= 30) return toast('Maksimal 30 butir.', 'error');
+    form.checklist.splice(after + 1, 0, { text: '', done: false });
+    setTimeout(() => document.querySelector(`[data-item="${after + 1}"]`)?.focus(), 0);
+};
+const openList = () => { showList.value = true; if (!form.checklist.length) addItem(); };
+const removeItem = (i) => { form.checklist.splice(i, 1); if (!form.checklist.length) showList.value = false; };
 
 const removeFile = async (f) => {
     files.value = files.value.filter((x) => x.key !== f.key);
@@ -94,7 +116,9 @@ const clearLink = () => { form.link = ''; preview.value = null; lastUrl = ''; sh
 
 const submit = () => {
     if (uploading.value) return toast('Tunggu unggahan selesai.', 'error');
+    if (tool.value) return toast(tool.value === 'draw' ? 'Ketuk "Pakai gambar" atau Batal dulu.' : 'Ketuk "Pakai rekaman" atau Batal dulu.', 'error');
     form.attachment_ids = files.value.filter((f) => f.id && !f.error).map((f) => f.id);
+    form.transform((d) => ({ ...d, checklist: d.checklist.filter((i) => i.text.trim()) }));
     const opts = { preserveScroll: true, onSuccess: () => emit('close') };
     if (isEdit.value) form.put(route('posts.update', [props.board.id, props.post.id]), opts);
     else form.post(route('posts.store', props.board.id), opts);
@@ -111,6 +135,22 @@ const icon = (f) => ({ audio: '🎵', video: '🎬' }[f.kind] || (f.name?.toLowe
             </Field>
             <Field v-model="form.title" label="Judul" maxlength="200" :error="form.errors.title" placeholder="Judul singkat" />
             <RichText v-model="form.body" label="Isi" placeholder="Tulis idemu di sini…" :error="form.errors.body" />
+
+            <!-- Daftar centang -->
+            <div v-if="showList" class="space-y-1.5" data-testid="checklist-editor">
+                <p class="text-sm font-bold">☑️ Daftar centang</p>
+                <div v-for="(it, i) in form.checklist" :key="i" class="flex items-center gap-2">
+                    <input v-model="it.done" type="checkbox" class="size-5 shrink-0 accent-[var(--m-accent)]" :aria-label="`Selesai butir ${i + 1}`" />
+                    <input v-model="it.text" :data-item="i" maxlength="200" class="h-10 min-w-0 flex-1 rounded-xl border-2 border-line bg-surface px-3" :placeholder="`Butir ${i + 1}`"
+                        @keydown.enter.prevent="addItem(i)" @keydown.backspace="!it.text && form.checklist.length > 1 && ($event.preventDefault(), removeItem(i))" />
+                    <button type="button" class="grid size-8 shrink-0 place-items-center rounded-full text-muted hover:bg-surface2" :aria-label="`Hapus butir ${i + 1}`" @click="removeItem(i)">✕</button>
+                </div>
+                <button type="button" class="text-sm font-bold text-accent" @click="addItem()">+ Tambah butir</button>
+                <p v-if="form.errors.checklist" class="text-sm font-semibold text-danger">{{ form.errors.checklist }}</p>
+            </div>
+
+            <DrawPad v-if="tool === 'draw'" @done="fromTool" @cancel="tool = null" />
+            <VoiceRecorder v-if="tool === 'voice'" @done="fromTool" @cancel="tool = null" />
 
             <!-- Lampiran -->
             <div v-if="files.length" class="grid grid-cols-3 gap-2 sm:grid-cols-4">
@@ -129,7 +169,7 @@ const icon = (f) => ({ audio: '🎵', video: '🎬' }[f.kind] || (f.name?.toLowe
 
             <!-- Tautan -->
             <div v-if="showLink" class="space-y-2">
-                <Field v-model="form.link" type="url" inputmode="url" label="Tautan" placeholder="https://… (YouTube juga bisa)" :error="form.errors.link"
+                <Field v-model="form.link" type="url" inputmode="url" label="Tautan" placeholder="https://… (YouTube, Vimeo, Google Slides/Formulir, Canva)" :error="form.errors.link"
                     @blur="fetchPreview" @keydown.enter.prevent="fetchPreview" @paste="onPaste" />
                 <p v-if="previewLoading" class="text-sm text-muted">Memuat pratinjau…</p>
                 <div v-else-if="preview" class="relative">
@@ -143,8 +183,11 @@ const icon = (f) => ({ audio: '🎵', video: '🎬' }[f.kind] || (f.name?.toLowe
                     🖼️ Foto/berkas
                     <input type="file" multiple class="sr-only" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.txt,.csv,audio/*,video/*" @change="pick" />
                 </label>
-                <button v-if="!showLink" type="button" class="h-10 rounded-xl bg-surface2 px-3 text-sm font-bold hover:bg-line/60" @click="showLink = true">🔗 Tautan</button>
-                <div class="ml-auto flex items-center gap-1" role="radiogroup" aria-label="Warna kartu">
+                <button v-if="!showLink" type="button" class="h-10 rounded-xl bg-surface2 px-3 text-sm font-bold hover:bg-line/60" title="YouTube, Vimeo, Google Slides/Dokumen/Formulir/Drive, Canva" @click="showLink = true">🔗 Tautan/video</button>
+                <button v-if="!tool" type="button" class="h-10 rounded-xl bg-surface2 px-3 text-sm font-bold hover:bg-line/60" data-testid="tool-draw" @click="tool = 'draw'">✏️ Coretan</button>
+                <button v-if="!tool" type="button" class="h-10 rounded-xl bg-surface2 px-3 text-sm font-bold hover:bg-line/60" data-testid="tool-voice" @click="tool = 'voice'">🎙️ Rekam suara</button>
+                <button v-if="!showList" type="button" class="h-10 rounded-xl bg-surface2 px-3 text-sm font-bold hover:bg-line/60" data-testid="tool-list" @click="openList">☑️ Daftar</button>
+                <div class="ml-auto flex flex-wrap items-center gap-1" role="radiogroup" aria-label="Warna kartu">
                     <button type="button" role="radio" :aria-checked="!form.color" title="Tanpa warna" class="size-7 rounded-full border-2 bg-surface" :class="!form.color ? 'border-ink' : 'border-line'" @click="form.color = null"></button>
                     <button v-for="(hex, key) in CARD_COLORS" :key="key" type="button" role="radio" :aria-checked="form.color === key" :title="key"
                         class="size-7 rounded-full border-2" :class="form.color === key ? 'border-ink scale-110' : 'border-transparent'" :style="{ background: hex }" @click="form.color = key"></button>

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Btn from '@/Components/Btn.vue';
@@ -21,15 +21,17 @@ import { useBoardSync } from '@/lib/useBoardSync';
 import { vSortable } from '@/lib/sortable';
 import { getJson, postJson } from '@/lib/http';
 import Modal from '@/Components/Modal.vue';
+import CopyTools from '@/Components/Board/CopyTools.vue';
+import { fmtDateTime } from '@/lib/datetime';
 import { timeAgo } from '@/lib/theme';
 
 const props = defineProps({
     board: Object, posts: Array, sections: Array, can: Object, version: String, settings: Object, options: Object,
-    activity: Object, activity_channel: String,
+    activity: Object, activity_channel: String, quick_comments: Array,
 });
 
-// Pembaruan hampir real-time (cek ringan tiap ~2 detik). WebSocket menyusul di Fase 2.
-useBoardSync(() => props.board.id, () => props.version, ['posts', 'sections', 'board', 'can', 'version', 'theme', 'settings']);
+// Realtime lewat WebSocket (Reverb); bila tidak tersambung, cek ringan tiap ~2 detik.
+useBoardSync(() => props.board.id, () => props.version, ['posts', 'sections', 'board', 'can', 'version', 'theme', 'settings'], () => props.activity_channel);
 
 // Salinan lokal agar hasil geser langsung terlihat sebelum server menjawab
 const items = ref([...props.posts]);
@@ -97,6 +99,12 @@ const edit = (p) => {
     open.value = true;
 };
 const media = ref(null);
+// Dari notifikasi "kartumu dinilai": buka kartunya langsung
+onMounted(() => {
+    const id = new URLSearchParams(location.search).get('kartu');
+    if (id && items.value.some((p) => p.id === id)) detailId.value = id;
+});
+const tool = ref(null);
 const detail = computed(() => items.value.find((p) => p.id === detailId.value) ?? null);
 watch(detail, (d) => { if (detailId.value && !d) detailId.value = null; });
 const cardProps = computed(() => ({
@@ -292,11 +300,16 @@ const copyCode = async () => {
         </button>
 
         <p v-if="board.is_frozen" class="mb-4 rounded-xl bg-warning/15 px-4 py-2 font-bold text-warning">❄️ Papan sedang dibekukan guru.</p>
+        <p v-if="board.schedule === 'before'" class="mb-4 rounded-xl bg-accent/15 px-4 py-2 font-bold" data-testid="schedule-banner">⏰ Papan dibuka untuk siswa {{ fmtDateTime(board.opens_at) }}{{ can.manage ? ' — siswa belum bisa melihat kartu.' : '.' }}</p>
+        <p v-else-if="board.schedule === 'after'" class="mb-4 rounded-xl bg-surface2 px-4 py-2 font-bold text-muted" data-testid="schedule-banner">🔒 Papan ditutup sejak {{ fmtDateTime(board.closes_at) }}: hanya bisa dibaca.</p>
+        <p v-else-if="board.closes_at" class="mb-4 rounded-xl bg-surface2 px-4 py-2 text-sm font-bold text-muted" data-testid="schedule-banner">⏰ Ditutup otomatis {{ fmtDateTime(board.closes_at) }}.</p>
+        <p v-if="board.rubric?.length && can.manage" class="mb-4 text-sm text-muted">📊 Rubrik aktif ({{ board.rubric.map((c) => c.name).join(', ') }}). Buka kartu siswa untuk menilai.</p>
 
         <!-- Aktivitas live: timer, poll, word cloud, spin wheel -->
         <ActivityPanel :board-id="board.id" :initial="activity" :channel="activity_channel" :can-interact="can.interact" />
 
-        <EmptyState v-if="!count && !isShelf" title="Papan masih kosong" :text="can.post ? 'Jadilah yang pertama menempel kartu!' : 'Belum ada kartu.'">
+        <EmptyState v-if="board.schedule === 'before' && !can.manage" title="Papan belum dibuka" :text="`Gurumu menjadwalkan papan ini dibuka ${fmtDateTime(board.opens_at)}. Kembali lagi nanti, ya!`" />
+        <EmptyState v-else-if="!count && !isShelf" title="Papan masih kosong" :text="can.post ? 'Jadilah yang pertama menempel kartu!' : 'Belum ada kartu.'">
             <Btn v-if="can.post" @click="compose()">+ Tempel kartu</Btn>
         </EmptyState>
 
@@ -363,7 +376,7 @@ const copyCode = async () => {
             aria-label="Tempel kartu">+</button>
 
         <PostComposer :show="open" :board="board" :sections="cols" :post="editing_" :section-id="composeSection" @close="open = false" />
-        <PostDetail :post="detail" :board="board" :can="can" @close="detailId = null" @edit="edit" @pin="pin" @remove="remove" @open-media="media = $event"
+        <PostDetail :post="detail" :board="board" :can="can" :quick="quick_comments" @close="detailId = null" @edit="edit" @pin="pin" @remove="remove" @open-media="media = $event"
             @moderate="moderatePost" @report="(p) => { detailId = null; reportPost(p); }" />
         <MediaViewer :item="media" @close="media = null" />
 
@@ -426,7 +439,8 @@ const copyCode = async () => {
             </div>
         </Modal>
 
-        <ShareDialog :show="shareOpen" :board="board" :can="can" :secret-url="settings?.secret_url" @close="shareOpen = false" @png="exportPng" />
+        <ShareDialog :show="shareOpen" :board="board" :can="can" :secret-url="settings?.secret_url" @close="shareOpen = false" @png="exportPng" @tool="(m) => { shareOpen = false; tool = m; }" />
+        <CopyTools v-if="can.manage" :mode="tool" :board="{ ...board, class_id: settings?.class_id }" :classes="options?.classes ?? []" @close="tool = null" />
         <ActivityLauncher v-if="can.manage" :show="activityOpen" :board-id="board.id" :has-class="!!board.class_name" @close="activityOpen = false" />
         <Collaborators v-if="can.own" :show="collabOpen" :board-id="board.id" @close="collabOpen = false" />
 

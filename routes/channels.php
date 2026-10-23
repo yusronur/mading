@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\Board;
 use App\Models\QuizSession;
 use App\Models\User;
 use App\Modules\Quiz\LiveQuiz;
@@ -21,12 +20,7 @@ Broadcast::channel('school.{schoolId}.live.{sessionId}', function (User $user, s
 });
 
 Broadcast::channel('school.{schoolId}.board.{boardId}', function (User $user, string $schoolId, string $boardId) {
-    if ($user->school_id !== $schoolId) {
-        return false;
-    }
-    $board = Board::find($boardId);
-
-    return $board !== null && $user->can('view', $board);
+    return \App\Events\BoardUpdated::authorize($user, $schoolId, $boardId);
 });
 
 // Lonceng notifikasi: hanya pemiliknya yang boleh mendengarkan

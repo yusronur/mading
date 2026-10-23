@@ -56,7 +56,7 @@ class BoardPolicy
             return true;
         }
 
-        return ! $board->is_frozen && in_array($board->visitor_permission, ['write', 'moderate'], true);
+        return ! $board->isLocked() && in_array($board->visitor_permission, ['write', 'moderate'], true);
     }
 
     /** Pemilik papan atau admin: hapus papan, atur kolaborator. */
@@ -84,7 +84,7 @@ class BoardPolicy
             return false;
         }
 
-        return $this->manage($user, $board) || ! $board->is_frozen;
+        return $this->manage($user, $board) || ! $board->isLocked();
     }
 
     public function comment(User $user, Board $board): bool
@@ -94,7 +94,7 @@ class BoardPolicy
 
     public function deleteComment(User $user, Board $board, Comment $comment): bool
     {
-        return $this->moderate($user, $board) || ($comment->author_id === $user->id && ! $board->is_frozen);
+        return $this->moderate($user, $board) || ($comment->author_id === $user->id && ! $board->isLocked());
     }
 
     public function viewPost(User $user, Board $board, Post $post): bool
@@ -112,7 +112,7 @@ class BoardPolicy
             return true;
         }
 
-        return $post->author_id === $user->id && ! $board->is_frozen && ! $board->archived_at && $this->view($user, $board);
+        return $post->author_id === $user->id && ! $board->isLocked() && ! $board->archived_at && $this->view($user, $board);
     }
 
     public function deletePost(User $user, Board $board, Post $post): bool
@@ -121,7 +121,7 @@ class BoardPolicy
             return true;
         }
 
-        return $post->author_id === $user->id && ! $board->is_frozen;
+        return $post->author_id === $user->id && ! $board->isLocked();
     }
 
     public function role(User $user, Board $board): ?string

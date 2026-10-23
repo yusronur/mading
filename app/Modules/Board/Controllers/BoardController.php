@@ -31,6 +31,7 @@ class BoardController extends Controller
             ->where('user_id', $user->id)->where('role', 'editor')->pluck('board_id');
 
         $boards = Board::where(fn ($q) => $q->where('owner_id', $user->id)->orWhereIn('id', $shared))
+            ->where('is_template', false)
             ->withCount('posts')
             ->with(['schoolClass:id,name', 'owner:id,name'])
             ->latest('updated_at')
@@ -50,6 +51,15 @@ class BoardController extends Controller
             'themes' => Theme::orderBy('sort')->get(['id', 'name']),
             'visibilities' => Board::VISIBILITIES,
             'formats' => Board::FORMATS,
+            // Template: milik sendiri + yang dibagikan guru lain di sekolah ini
+            'templates' => Board::where('is_template', true)
+                ->where(fn ($q) => $q->where('owner_id', $user->id)->orWhere('template_shared', true))
+                ->withCount('posts')->with('owner:id,name')->orderBy('title')->limit(100)->get()
+                ->map(fn (Board $b) => [
+                    'id' => $b->id, 'title' => $b->title, 'icon' => $b->icon, 'format' => $b->format, 'posts_count' => $b->posts_count,
+                    'owner' => $b->owner?->name, 'is_owner' => $b->owner_id === $user->id, 'shared' => $b->template_shared,
+                    'description' => $b->description,
+                ]),
         ]);
     }
 
@@ -61,7 +71,7 @@ class BoardController extends Controller
 
         $memberOf = \Illuminate\Support\Facades\DB::table('board_members')->where('user_id', $user->id)->pluck('board_id');
 
-        $boards = Board::whereNull('archived_at')
+        $boards = Board::whereNull('archived_at')->where('is_template', false)
             ->where(function ($q) use ($classIds, $memberOf) {
                 $q->where('visibility', 'school')
                     ->orWhere(fn ($w) => $w->where('visibility', 'class')->whereIn('class_id', $classIds))
@@ -171,6 +181,7 @@ class BoardController extends Controller
             ],
             // Data pengaturan hanya dikirim ke pengelola papan
             'settings' => $canManage ? $presenter->settings($board) : null,
+            'quick_comments' => $canManage ? GradeController::quickFor($user) : null,
             'options' => $canManage ? $presenter->options() : null,
         ] + $this->activityProps($request, $board));
     }
@@ -235,7 +246,17 @@ class BoardController extends Controller
             'allow_anonymous' => ['boolean'],
             'reaction' => ['required', Rule::in(array_keys(\App\Models\Reaction::KINDS))],
             'allow_comments' => ['boolean'],
-        ], ['class_id.required_if' => 'Pilih rombel untuk papan satu rombel.'], [
+            'checklist_all' => ['boolean'],
+            'opens_at' => ['nullable', 'date'],
+            'closes_at' => array_merge(['nullable', 'date'], $request->filled('opens_at') ? ['after:opens_at'] : []),
+            'rubric' => ['nullable', 'array', 'max:6'],
+            'rubric.*.name' => ['nullable', 'string', 'max:60'],
+            'rubric.*.max' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ], ['class_id.required_if' => 'Pilih rombel untuk papan satu rombel.', 'closes_at.after' => 'Waktu tutup harus setelah waktu buka.'], [
+            'opens_at' => 'waktu buka',
+            'closes_at' => 'waktu tutup',
+            'rubric.*.name' => 'nama kriteria',
+            'rubric.*.max' => 'skor maksimal',
             'title' => 'judul',
             'description' => 'petunjuk',
             'class_id' => 'rombel',
@@ -259,6 +280,12 @@ class BoardController extends Controller
             'allow_comments' => (bool) ($data['allow_comments'] ?? false),
             'require_approval' => (bool) ($data['require_approval'] ?? false),
             'max_posts' => (int) ($data['max_posts'] ?? 0),
+            'checklist_all' => (bool) ($data['checklist_all'] ?? false),
+            'opens_at' => self::utc($data['opens_at'] ?? null),
+            'closes_at' => self::utc($data['closes_at'] ?? null),
+            'rubric' => collect($data['rubric'] ?? [])
+                ->map(fn ($c) => ['name' => trim(strip_tags((string) ($c['name'] ?? ''))), 'max' => (int) ($c['max'] ?? 0)])
+                ->filter(fn ($c) => $c['name'] !== '' && $c['max'] > 0)->values()->all(),
         ]);
         if ($board->visibility === 'link') {
             $board->ensureSecretToken();
@@ -267,6 +294,12 @@ class BoardController extends Controller
         $board->save();
 
         return back()->with('success', 'Pengaturan papan disimpan.');
+    }
+
+    /** Waktu dari form (zona sekolah) -> ISO UTC untuk disimpan di settings. */
+    private static function utc(?string $value): ?string
+    {
+        return $value ? \Illuminate\Support\Carbon::parse(str_replace('T', ' ', $value), config('app.timezone'))->utc()->toIso8601String() : null;
     }
 
     /**

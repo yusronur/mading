@@ -39,6 +39,7 @@ const nav = computed(() => {
             { label: 'Papan', route: 'teacher.dashboard', icon: '📌', active: 'teacher.dashboard' },
             { label: 'Kuis', route: 'quizzes.index', icon: '📝', active: ['quizzes.*', 'assignments.*'] },
             { label: 'Bank Soal', route: 'banks.index', icon: '📚', active: 'banks.*' },
+            { label: 'Rekap Nilai', route: 'recap.index', icon: '📊', active: 'recap.*' },
             { label: 'Pengaturan', route: 'admin.settings.edit', icon: '⚙️', active: 'admin.settings.*' },
         ];
     }
@@ -47,6 +48,7 @@ const nav = computed(() => {
             { label: 'Papan Saya', route: 'teacher.dashboard', icon: '📌', active: 'teacher.dashboard' },
             { label: 'Kuis', route: 'quizzes.index', icon: '📝', active: ['quizzes.*', 'assignments.*'] },
             { label: 'Bank Soal', route: 'banks.index', icon: '📚', active: 'banks.*' },
+            { label: 'Rekap Nilai', route: 'recap.index', icon: '📊', active: 'recap.*' },
             ...(user.value?.is_homeroom ? [{ label: 'Kelas Saya', route: 'credentials.index', icon: '🪪', active: 'credentials.*' }] : []),
             { label: 'Peringkat', route: 'gamify.leaderboard', icon: '🏆', active: 'gamify.leaderboard' },
             { label: 'Profil', route: 'profile.edit', icon: '🎨', active: 'profile.*' },

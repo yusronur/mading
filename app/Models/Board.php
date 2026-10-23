@@ -43,10 +43,12 @@ class Board extends Model
 
     protected $fillable = [
         'school_id', 'owner_id', 'class_id', 'folder_id', 'code', 'secret_token', 'title', 'description', 'icon', 'background', 'format', 'visibility',
-        'visitor_permission', 'settings', 'theme_id', 'theme_locked', 'is_frozen', 'archived_at',
+        'visitor_permission', 'settings', 'theme_id', 'theme_locked', 'is_frozen', 'archived_at', 'is_template', 'template_shared',
     ];
 
     protected $casts = [
+        'is_template' => 'boolean',
+        'template_shared' => 'boolean',
         'settings' => 'array',
         'theme_locked' => 'boolean',
         'is_frozen' => 'boolean',
@@ -137,6 +139,34 @@ class Board extends Model
         }
 
         return $this->secret_token;
+    }
+
+    /** Rubrik penilaian kartu (Tahap 18): [{name, max}] atau kosong. */
+    public function rubric(): array
+    {
+        return array_values(array_filter($this->settings['rubric'] ?? [], fn ($c) => ($c['name'] ?? '') !== '' && ($c['max'] ?? 0) > 0));
+    }
+
+    /** Jadwal buka-tutup (Tahap 18): before | open | after. */
+    public function scheduleState(): string
+    {
+        $open = $this->settings['opens_at'] ?? null;
+        $close = $this->settings['closes_at'] ?? null;
+        $now = now();
+        if ($open && $now->lt(\Illuminate\Support\Carbon::parse($open))) {
+            return 'before';
+        }
+        if ($close && $now->gte(\Illuminate\Support\Carbon::parse($close))) {
+            return 'after';
+        }
+
+        return 'open';
+    }
+
+    /** Siswa tidak bisa menambah/mengubah apa pun: dibekukan manual atau di luar jadwal. */
+    public function isLocked(): bool
+    {
+        return $this->is_frozen || $this->scheduleState() !== 'open';
     }
 
     public function setting(string $key, mixed $default = null): mixed

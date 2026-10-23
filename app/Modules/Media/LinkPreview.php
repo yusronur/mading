@@ -25,6 +25,34 @@ class LinkPreview
         return preg_match($pattern, $url, $m) ? $m[1] : null;
     }
 
+    /**
+     * Sematan dari layanan yang umum dipakai guru (Tahap 17). Alamat sematan
+     * dibangun ulang dari id yang dicocokkan pola ketat, bukan dari tautan mentah.
+     *
+     * @return array{provider:string, embed_url:string, ratio:string}|null
+     */
+    public static function embed(string $url): ?array
+    {
+        $id = '([A-Za-z0-9_-]{10,80})';
+        $rules = [
+            ['~^https://(?:www\.)?vimeo\.com/(?:video/)?(\d{6,12})(?:[/?#]|$)~i', 'Vimeo', fn ($m) => "https://player.vimeo.com/video/{$m[1]}", '16/9'],
+            ['~^https://player\.vimeo\.com/video/(\d{6,12})~i', 'Vimeo', fn ($m) => "https://player.vimeo.com/video/{$m[1]}", '16/9'],
+            ["~^https://docs\.google\.com/presentation/d/(e/)?{$id}~i", 'Google Slides', fn ($m) => "https://docs.google.com/presentation/d/{$m[1]}{$m[2]}/".($m[1] ? 'embed' : 'preview'), '16/9'],
+            ["~^https://docs\.google\.com/document/d/(e/)?{$id}~i", 'Google Dokumen', fn ($m) => "https://docs.google.com/document/d/{$m[1]}{$m[2]}/".($m[1] ? 'pub?embedded=true' : 'preview'), '3/4'],
+            ["~^https://docs\.google\.com/spreadsheets/d/(e/)?{$id}~i", 'Google Spreadsheet', fn ($m) => "https://docs.google.com/spreadsheets/d/{$m[1]}{$m[2]}/".($m[1] ? 'pubhtml?widget=true' : 'preview'), '4/3'],
+            ["~^https://docs\.google\.com/forms/d/(e/)?{$id}~i", 'Google Formulir', fn ($m) => "https://docs.google.com/forms/d/{$m[1]}{$m[2]}/viewform?embedded=true", '3/4'],
+            ["~^https://drive\.google\.com/file/d/{$id}~i", 'Google Drive', fn ($m) => "https://drive.google.com/file/d/{$m[1]}/preview", '4/3'],
+            ['~^https://(?:www\.)?canva\.com/design/([A-Za-z0-9_-]{8,20})/([A-Za-z0-9_-]{8,40})/view~i', 'Canva', fn ($m) => "https://www.canva.com/design/{$m[1]}/{$m[2]}/view?embed", '16/9'],
+        ];
+        foreach ($rules as [$re, $provider, $build, $ratio]) {
+            if (preg_match($re, $url, $m)) {
+                return ['provider' => $provider, 'embed_url' => $build($m), 'ratio' => $ratio];
+            }
+        }
+
+        return null;
+    }
+
     public function preview(string $url): array
     {
         $url = trim($url);
@@ -48,6 +76,20 @@ class LinkPreview
                     'title' => $title ? mb_substr($title, 0, 200) : 'Video YouTube',
                     'description' => null,
                     'image' => "https://i.ytimg.com/vi/{$yt}/hqdefault.jpg",
+                ];
+            }
+
+            if ($embed = self::embed($url)) {
+                // Judul diambil bila halamannya publik; layanan yang perlu login cukup nama layanan
+                $res = $this->safeGet($url);
+                $meta = $res && str_contains(strtolower($res['type']), 'html') ? $this->parse($res['body'], $res['url']) : [];
+                $title = trim((string) ($meta['title'] ?? ''));
+
+                return $base + $embed + [
+                    'type' => 'embed',
+                    'title' => $title !== '' && ! preg_match('/^(sign in|login|masuk)/i', $title) ? $title : $embed['provider'],
+                    'description' => $meta['description'] ?? null,
+                    'image' => $meta['image'] ?? null,
                 ];
             }
 

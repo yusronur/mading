@@ -18,7 +18,7 @@ class Post extends Model
 
     protected $fillable = [
         'school_id', 'board_id', 'section_id', 'author_id', 'is_anonymous', 'title', 'body', 'link', 'color',
-        'status', 'moderation_reason', 'position', 'is_pinned', 'edited_at',
+        'status', 'moderation_reason', 'position', 'is_pinned', 'edited_at', 'checklist',
     ];
 
     protected $casts = [
@@ -26,8 +26,11 @@ class Post extends Model
         'is_pinned' => 'boolean',
         'position' => 'float',
         'link' => 'array',
+        'checklist' => 'array',
         'edited_at' => 'datetime',
     ];
+
+    public const CHECKLIST_MAX = 30;
 
     public const COLORS = ['red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink'];
 

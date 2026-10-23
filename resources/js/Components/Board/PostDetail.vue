@@ -4,6 +4,8 @@ import Modal from '@/Components/Modal.vue';
 import Btn from '@/Components/Btn.vue';
 import PostCard from '@/Components/Board/PostCard.vue';
 import Reactions from '@/Components/Board/Reactions.vue';
+import GradePanel from '@/Components/Board/GradePanel.vue';
+import QuickChips from '@/Components/Board/QuickChips.vue';
 import { getJson, postJson, deleteJson } from '@/lib/http';
 import { askConfirm } from '@/lib/confirm';
 import { toast } from '@/lib/toast';
@@ -11,7 +13,9 @@ import { refreshGamify } from '@/lib/gamify';
 import { timeAgo } from '@/lib/theme';
 
 // Kartu lengkap + utas komentar (INT-01).
-const props = defineProps({ post: Object, board: Object, can: Object });
+const props = defineProps({ post: Object, board: Object, can: Object, quick: { type: Array, default: null } });
+const quickList = ref(props.quick ?? []);
+const addQuick = (t) => (body.value = body.value ? `${body.value.trim()} ${t}` : t);
 const emit = defineEmits(['close', 'edit', 'pin', 'remove', 'open-media', 'moderate', 'report']);
 
 const comments = ref([]);
@@ -78,6 +82,8 @@ const removeComment = async (c) => {
 
             <Reactions :board-id="board.id" :post="post" :can="can.interact" :manage="can.manage" />
 
+            <GradePanel :post="post" :board="board" :manage="can.manage" :quick="quickList" @quick-update="quickList = $event" />
+
             <section v-if="board.allow_comments || total">
                 <h3 class="mb-3 font-bold">💬 Komentar <span class="text-muted">({{ total }})</span></h3>
                 <p v-if="loading" class="text-sm text-muted">Memuat…</p>
@@ -122,11 +128,12 @@ const removeComment = async (c) => {
                             @keydown.enter.exact.prevent="send"></textarea>
                         <Btn type="submit" :loading="sending" :disabled="!body.trim()">Kirim</Btn>
                     </div>
+                    <QuickChips v-if="can.manage && quick" :key="quickList.join('|')" :items="quickList" @pick="addQuick" @update="quickList = $event" />
                     <label v-if="board.allow_anonymous" class="flex items-center gap-2 text-sm font-semibold">
                         <input v-model="anonymous" type="checkbox" class="size-4 accent-[var(--m-accent)]" /> Kirim sebagai anonim
                     </label>
                 </form>
-                <p v-else-if="board.is_frozen" class="mt-3 text-sm text-muted">❄️ Papan dibekukan; komentar ditutup.</p>
+                <p v-else-if="board.is_frozen || board.schedule === 'after'" class="mt-3 text-sm text-muted">{{ board.is_frozen ? '❄️ Papan dibekukan' : '🔒 Papan sudah ditutup' }}; komentar ditutup.</p>
             </section>
         </div>
     </Modal>

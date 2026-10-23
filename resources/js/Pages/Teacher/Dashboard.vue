@@ -9,8 +9,9 @@ import EmptyState from '@/Components/EmptyState.vue';
 import { askConfirm } from '@/lib/confirm';
 import { timeAgo } from '@/lib/theme';
 import { BACKGROUNDS } from '@/lib/backgrounds';
+import CopyTools from '@/Components/Board/CopyTools.vue';
 
-const props = defineProps({ boards: Array, folders: Array, classes: Array, themes: Array, visibilities: Object, formats: Object });
+const props = defineProps({ boards: Array, folders: Array, classes: Array, themes: Array, visibilities: Object, formats: Object, templates: { type: Array, default: () => [] } });
 
 // ---------- Buat papan
 const open = ref(false);
@@ -21,10 +22,29 @@ const formatCards = [
     { key: 'stream', icon: '📜', label: 'Linimasa' },
     { key: 'shelf', icon: '🗂️', label: 'Berkolom' },
 ];
-const submit = () => form.post(route('boards.store'), { onSuccess: () => { open.value = false; form.reset(); } });
+const template = ref(null); // template terpilih di form papan baru
+const submit = () => {
+    const done = { onSuccess: () => { open.value = false; form.reset(); template.value = null; } };
+    if (template.value) form.post(route('templates.use', template.value.id), done);
+    else form.post(route('boards.store'), done);
+};
+const pickTemplate = (t) => {
+    template.value = t;
+    if (!form.title) form.title = t.title;
+};
+const useTemplateNow = (t) => { form.reset(); pickTemplate(t); open.value = true; };
+const shareTemplate = (t) => router.post(route('templates.share', t.id), { shared: !t.shared }, { preserveScroll: true });
+const removeTemplate = async (t) => {
+    if (await askConfirm({ title: `Hapus template "${t.title}"?`, message: 'Papan yang sudah dibuat dari template ini tidak terpengaruh.', confirmText: 'Hapus', tone: 'danger' })) {
+        router.delete(route('boards.destroy', t.id), { preserveScroll: true });
+    }
+};
+const tool = ref(null);
+const toolBoard = ref(null);
+const openTool = (b, m) => { toolBoard.value = b; tool.value = m; };
 
 // ---------- Saring
-const tab = ref('mine'); // mine | shared | archived
+const tab = ref('mine'); // mine | shared | archived | templates
 const folder = ref(null);
 const q = ref('');
 const classFilter = ref('');
@@ -44,6 +64,7 @@ const counts = computed(() => ({
     mine: props.boards.filter((b) => b.is_owner && !b.archived).length,
     shared: props.boards.filter((b) => !b.is_owner && !b.archived).length,
     archived: props.boards.filter((b) => b.archived).length,
+    templates: props.templates.length,
 }));
 const inFolder = (id) => props.boards.filter((b) => b.folder_id === id && !b.archived).length;
 
@@ -83,7 +104,7 @@ const visLabel = { private: '🔒 Pribadi', class: '🏫', school: '🌏 Sekolah
 
         <!-- Tab -->
         <div class="mb-4 flex flex-wrap gap-2" role="tablist">
-            <button v-for="t in [['mine', 'Papan saya'], ['shared', 'Dibagikan ke saya'], ['archived', 'Arsip']]" :key="t[0]" role="tab" :aria-selected="tab === t[0]"
+            <button v-for="t in [['mine', 'Papan saya'], ['shared', 'Dibagikan ke saya'], ['archived', 'Arsip'], ['templates', '⭐ Template']]" :key="t[0]" role="tab" :aria-selected="tab === t[0]"
                 class="rounded-full px-4 py-2 text-sm font-bold transition" :class="tab === t[0] ? 'bg-ink text-bg' : 'bg-surface2 text-muted hover:text-ink'"
                 @click="tab = t[0]">{{ t[1] }} <span class="opacity-70">{{ counts[t[0]] }}</span></button>
         </div>
@@ -111,7 +132,29 @@ const visLabel = { private: '🔒 Pribadi', class: '🏫', school: '🌏 Sekolah
             </select>
         </div>
 
-        <EmptyState v-if="!boards.length" title="Belum ada papan" text="Buat papan pertama, lalu bagikan kodenya ke siswa. Mereka bisa langsung menempel kartu dari HP.">
+        <!-- Template -->
+        <template v-if="tab === 'templates'">
+            <EmptyState v-if="!templates.length" title="Belum ada template" text="Buka papan, pilih Bagikan → ⭐ Jadikan template. Template bisa dipakai berulang untuk rombel atau tahun ajaran berikutnya." />
+            <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="template-list">
+                <div v-for="t in templates" :key="t.id" class="flex flex-col rounded-card border border-line bg-surface p-5 shadow-card">
+                    <h3 class="text-xl leading-tight font-bold"><span v-if="t.icon">{{ t.icon }} </span>{{ t.title }}</h3>
+                    <p class="mt-2 flex flex-wrap gap-x-3 text-sm text-muted">
+                        <span>{{ formats[t.format]?.split(' (')[0] }}</span><span>🗒️ {{ t.posts_count }} kartu contoh</span>
+                        <span>{{ t.is_owner ? (t.shared ? '🌏 dibagikan' : '🔒 pribadi') : '👤 ' + t.owner }}</span>
+                    </p>
+                    <div class="mt-auto flex flex-wrap gap-2 pt-4">
+                        <Btn size="sm" @click="useTemplateNow(t)">Pakai template</Btn>
+                        <template v-if="t.is_owner">
+                            <Link :href="route('boards.show', t.id)" class="inline-flex h-9 items-center rounded-xl bg-surface2 px-3 text-sm font-bold hover:bg-line/60">✏️ Ubah</Link>
+                            <Btn size="sm" variant="soft" @click="shareTemplate(t)">{{ t.shared ? 'Jadikan pribadi' : 'Bagikan ke guru' }}</Btn>
+                            <Btn size="sm" variant="ghost" @click="removeTemplate(t)">🗑️</Btn>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <EmptyState v-else-if="!boards.length" title="Belum ada papan" text="Buat papan pertama, lalu bagikan kodenya ke siswa. Mereka bisa langsung menempel kartu dari HP.">
             <Btn @click="open = true">Buat papan pertama</Btn>
         </EmptyState>
         <p v-else-if="!list.length" class="rounded-card bg-surface2/60 p-8 text-center text-muted">Tidak ada papan yang cocok.</p>
@@ -134,6 +177,8 @@ const visLabel = { private: '🔒 Pribadi', class: '🏫', school: '🌏 Sekolah
                     @click="menuFor = menuFor === b.id ? null : b.id">⋯</button>
                 <div v-if="menuFor === b.id" class="absolute top-14 right-3 z-10 w-52 rounded-xl border border-line bg-surface p-1 text-sm font-semibold shadow-card" @mouseleave="menuFor = null">
                     <button class="block w-full rounded-lg px-3 py-2 text-left hover:bg-surface2" @click="menuFor = null; duplicate(b)">📑 Duplikat</button>
+                    <button class="block w-full rounded-lg px-3 py-2 text-left hover:bg-surface2" data-testid="menu-copy-classes" @click="menuFor = null; openTool(b, 'classes')">📤 Salin ke rombel lain</button>
+                    <button class="block w-full rounded-lg px-3 py-2 text-left hover:bg-surface2" @click="menuFor = null; openTool(b, 'template')">⭐ Jadikan template</button>
                     <template v-if="b.is_owner">
                         <button v-if="!b.archived" class="block w-full rounded-lg px-3 py-2 text-left hover:bg-surface2" @click="menuFor = null; moving = b">📂 Pindah ke folder</button>
                         <button class="block w-full rounded-lg px-3 py-2 text-left hover:bg-surface2" @click="menuFor = null; archive(b)">{{ b.archived ? '♻️ Pulihkan' : '🗄️ Arsipkan' }}</button>
@@ -146,9 +191,16 @@ const visLabel = { private: '🔒 Pribadi', class: '🏫', school: '🌏 Sekolah
         <!-- Modal: papan baru -->
         <Modal :show="open" title="Papan baru" @close="open = false">
             <form class="space-y-4" @submit.prevent="submit">
+                <div v-if="templates.length">
+                    <p class="mb-1.5 text-sm font-bold">Mulai dari</p>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" class="rounded-xl border-2 px-3 py-2 text-sm font-bold" :class="!template ? 'border-accent bg-surface2' : 'border-line'" @click="template = null">✨ Papan kosong</button>
+                        <button v-for="t in templates" :key="t.id" type="button" class="rounded-xl border-2 px-3 py-2 text-sm font-bold" :class="template?.id === t.id ? 'border-accent bg-surface2' : 'border-line'" @click="pickTemplate(t)">⭐ {{ t.title }}</button>
+                    </div>
+                </div>
                 <Field v-model="form.title" label="Judul" placeholder="mis. Refleksi Bab 3: Ekosistem" :error="form.errors.title" maxlength="150" />
-                <Field v-model="form.description" as="textarea" :rows="2" label="Petunjuk untuk siswa (opsional)" :error="form.errors.description" />
-                <div>
+                <Field v-if="!template" v-model="form.description" as="textarea" :rows="2" label="Petunjuk untuk siswa (opsional)" :error="form.errors.description" />
+                <div v-if="!template">
                     <p class="mb-1.5 text-sm font-bold">Format papan</p>
                     <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
                         <button v-for="f in formatCards" :key="f.key" type="button" class="rounded-xl border-2 p-3 text-center font-bold transition"
@@ -163,14 +215,14 @@ const visLabel = { private: '🔒 Pribadi', class: '🏫', school: '🌏 Sekolah
                 <Field v-if="form.visibility === 'class'" v-model="form.class_id" as="select" label="Rombel" :error="form.errors.class_id">
                     <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
                 </Field>
-                <Field v-model="form.theme_id" as="select" label="Tema papan (opsional)">
+                <Field v-if="!template" v-model="form.theme_id" as="select" label="Tema papan (opsional)">
                     <option :value="null">Ikuti pilihan masing-masing siswa</option>
                     <option v-for="t in themes" :key="t.id" :value="t.id">{{ t.name }}</option>
                 </Field>
-                <label v-if="form.theme_id" class="flex items-center gap-2 text-sm font-semibold">
+                <label v-if="form.theme_id && !template" class="flex items-center gap-2 text-sm font-semibold">
                     <input v-model="form.theme_locked" type="checkbox" class="size-5 accent-[var(--m-accent)]" /> Kunci tema ini untuk semua siswa
                 </label>
-                <Btn type="submit" block size="lg" :loading="form.processing">Buat papan</Btn>
+                <Btn type="submit" block size="lg" :loading="form.processing">{{ template ? 'Buat dari template' : 'Buat papan' }}</Btn>
             </form>
         </Modal>
 
@@ -188,5 +240,6 @@ const visLabel = { private: '🔒 Pribadi', class: '🏫', school: '🌏 Sekolah
                 <p v-if="!folders.length" class="text-sm text-muted">Belum ada folder. Buat dulu dengan tombol "+ Folder".</p>
             </div>
         </Modal>
+        <CopyTools :mode="tool" :board="toolBoard" :classes="classes" @close="tool = null" />
     </AppLayout>
 </template>

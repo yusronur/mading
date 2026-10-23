@@ -62,14 +62,26 @@ export async function getEcho(config) {
     return loading;
 }
 
+// Beberapa komponen bisa mendengarkan kanal yang sama (mis. kartu + aktivitas papan):
+// kanal baru ditinggalkan setelah pendengar terakhir berhenti.
+const refs = new Map();
+
 /** Berlangganan kanal privat; mengembalikan fungsi berhenti. */
 export async function listen(config, channel, event, handler) {
     const e = await getEcho(config);
     if (!e) return () => {};
     const ch = e.private(channel);
     ch.listen(`.${event}`, handler);
+    refs.set(channel, (refs.get(channel) ?? 0) + 1);
+    let done = false;
 
     return () => {
-        try { e.leave(channel); } catch (err) { /* abaikan */ }
+        if (done) return;
+        done = true;
+        try {
+            ch.stopListening(`.${event}`, handler);
+            const n = (refs.get(channel) ?? 1) - 1;
+            if (n <= 0) { refs.delete(channel); e.leave(channel); } else refs.set(channel, n);
+        } catch (err) { /* abaikan */ }
     };
 }

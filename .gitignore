@@ -26,3 +26,5 @@ Thumbs.db
 # Madingo
 vendor.zip
 /storage/app/*.xlsx
+/storage/app/loadtest.json
+/tests/load/loadtest.json

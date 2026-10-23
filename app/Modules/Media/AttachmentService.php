@@ -106,6 +106,10 @@ class AttachmentService
         if ($mime === 'video/mp4' && $ext === 'm4a') {
             $mime = 'audio/mp4';
         }
+        // Rekaman suara dari peramban (MediaRecorder): WebM/Ogg tanpa video terbaca sebagai video oleh finfo
+        if (in_array($mime, ['video/webm', 'video/ogg', 'application/ogg'], true) && in_array($ext, ['weba', 'ogg', 'opus'], true)) {
+            $mime = $ext === 'weba' ? 'audio/webm' : 'audio/ogg';
+        }
 
         if (! isset(self::TYPES[$mime])) {
             throw new RuntimeException('Jenis berkas ini tidak didukung. Gunakan gambar, PDF, dokumen Office, audio, atau video.');

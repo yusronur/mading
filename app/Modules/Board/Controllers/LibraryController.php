@@ -3,12 +3,12 @@
 namespace App\Modules\Board\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Models\Attachment;
 use App\Models\AuditLog;
 use App\Models\Board;
 use App\Models\BoardFolder;
 use App\Models\Post;
 use App\Models\User;
+use App\Modules\Board\BoardCopier;
 use App\Modules\Board\BoardPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -40,63 +40,81 @@ class LibraryController extends Controller
         $withPosts = $request->boolean('with_posts') && Gate::allows('manage', $board);
         $user = $request->user();
 
-        $copy = DB::transaction(function () use ($board, $withPosts, $user) {
-            $copy = $board->replicate(['code', 'secret_token', 'archived_at', 'folder_id']);
-            $copy->fill([
-                'owner_id' => $user->id,
-                'title' => Str::limit($board->title.' (salinan)', 150, ''),
-                'code' => Board::generateCode(),
-                'secret_token' => $board->visibility === 'link' ? Str::random(32) : null,
-                'is_frozen' => false,
-            ]);
-            $copy->save();
-
-            $sectionMap = [];
-            foreach ($board->sections()->get() as $section) {
-                $new = $section->replicate();
-                $new->board_id = $copy->id;
-                $new->save();
-                $sectionMap[$section->id] = $new->id;
-            }
-
-            if ($withPosts) {
-                $disk = Attachment::disk();
-                $posts = $board->posts()->where('status', 'published')->with('attachments')->get();
-
-                foreach ($posts as $post) {
-                    $newPost = $post->replicate(['comment_count', 'reaction_count', 'report_count']);
-                    $newPost->fill([
-                        'board_id' => $copy->id,
-                        'section_id' => $sectionMap[$post->section_id] ?? null,
-                        'link' => $post->link ? array_diff_key($post->link, ['image_path' => true]) : null,
-                    ]);
-                    $newPost->save();
-
-                    foreach ($post->attachments as $a) {
-                        $dir = 'schools/'.$copy->school_id.'/boards/'.$copy->id;
-                        $name = (string) Str::uuid7();
-                        $path = $dir.'/'.$name.'.'.pathinfo($a->path, PATHINFO_EXTENSION);
-                        $thumb = $a->thumb_path ? $dir.'/'.$name.'-thumb.webp' : null;
-                        if (! $disk->exists($a->path)) {
-                            continue;
-                        }
-                        $disk->copy($a->path, $path);
-                        if ($thumb && $disk->exists($a->thumb_path)) {
-                            $disk->copy($a->thumb_path, $thumb);
-                        }
-                        $na = $a->replicate();
-                        $na->fill(['board_id' => $copy->id, 'attachable_id' => $newPost->id, 'path' => $path, 'thumb_path' => $thumb, 'owner_id' => $a->owner_id]);
-                        $na->save();
-                    }
-                }
-            }
-
-            return $copy;
-        });
+        $copy = app(BoardCopier::class)->copy($board, $user, ['title' => Str::limit($board->title.' (salinan)', 150, '')], $withPosts ? 'all' : 'none');
 
         AuditLog::record('board.duplicated', $copy, ['from' => $board->id, 'with_posts' => $withPosts]);
 
         return redirect()->route('boards.show', $copy)->with('success', 'Papan disalin dengan kode baru '.$copy->code.'.');
+    }
+
+    /** Salin struktur papan ke beberapa rombel sekaligus, mis. untuk tahun ajaran baru (Tahap 18). */
+    public function copyToClasses(Request $request, Board $board, BoardCopier $copier): RedirectResponse
+    {
+        Gate::authorize('view', $board);
+        Gate::authorize('create', Board::class);
+        $data = $request->validate([
+            'class_ids' => ['required', 'array', 'min:1', 'max:20'],
+            'class_ids.*' => ['uuid', Rule::exists('classes', 'id')],
+            'posts' => ['required', Rule::in(['none', 'staff'])],
+        ], ['class_ids.required' => 'Pilih minimal satu rombel.'], ['class_ids' => 'rombel']);
+
+        $classes = \App\Models\SchoolClass::whereIn('id', $data['class_ids'])->get();
+        foreach ($classes as $class) {
+            $copy = $copier->copy($board, $request->user(), ['visibility' => 'class', 'class_id' => $class->id], Gate::allows('manage', $board) ? $data['posts'] : 'none');
+            AuditLog::record('board.copied_to_class', $copy, ['from' => $board->id, 'class' => $class->name]);
+        }
+
+        return back()->with('success', "Papan disalin ke {$classes->count()} rombel: ".$classes->pluck('name')->implode(', ').'.');
+    }
+
+    /** Simpan papan sebagai template pribadi atau bersama sekolah. */
+    public function saveTemplate(Request $request, Board $board, BoardCopier $copier): RedirectResponse
+    {
+        Gate::authorize('manage', $board);
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:150'],
+            'shared' => ['boolean'],
+            'with_posts' => ['boolean'],
+        ], [], ['title' => 'nama template']);
+
+        $tpl = $copier->copy($board, $request->user(), [
+            'title' => strip_tags($data['title']), 'visibility' => 'private', 'class_id' => null,
+            'is_template' => true, 'template_shared' => (bool) ($data['shared'] ?? false),
+        ], ($data['with_posts'] ?? false) ? 'staff' : 'none');
+        AuditLog::record('board.template_saved', $tpl, ['from' => $board->id]);
+
+        return back()->with('success', 'Template "'.$tpl->title.'" disimpan. Pakai lewat tombol "+ Papan baru".');
+    }
+
+    /** Buat papan baru dari template. */
+    public function useTemplate(Request $request, Board $board, BoardCopier $copier): RedirectResponse
+    {
+        Gate::authorize('create', Board::class);
+        $user = $request->user();
+        abort_unless($board->is_template && ($board->owner_id === $user->id || $board->template_shared || $user->isAdmin()), 404);
+
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:150'],
+            'visibility' => ['required', Rule::in(array_keys(Board::VISIBILITIES))],
+            'class_id' => ['nullable', 'required_if:visibility,class', 'uuid', Rule::exists('classes', 'id')],
+        ], ['class_id.required_if' => 'Pilih rombel untuk papan satu rombel.'], ['title' => 'judul', 'class_id' => 'rombel']);
+
+        $copy = $copier->copy($board, $user, [
+            'title' => strip_tags($data['title']), 'visibility' => $data['visibility'],
+            'class_id' => $data['visibility'] === 'class' ? $data['class_id'] : null,
+        ], 'all');
+        AuditLog::record('board.from_template', $copy, ['template' => $board->id]);
+
+        return redirect()->route('boards.show', $copy)->with('success', 'Papan dibuat dari template. Kode: '.$copy->code.'.');
+    }
+
+    public function shareTemplate(Request $request, Board $board): RedirectResponse
+    {
+        Gate::authorize('own', $board);
+        abort_unless($board->is_template, 404);
+        $board->forceFill(['template_shared' => $request->boolean('shared')])->saveQuietly();
+
+        return back()->with('success', $board->template_shared ? 'Template dibagikan ke semua guru di sekolah.' : 'Template kembali pribadi.');
     }
 
     public function moveToFolder(Request $request, Board $board): RedirectResponse

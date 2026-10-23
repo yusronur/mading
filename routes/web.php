@@ -118,6 +118,10 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::get('/gabung/{code}', [BoardController::class, 'joinLink'])->where('code', '[A-Za-z0-9]{6}')->name('boards.join-link');
     Route::post('/papan/{board}/arsip', [LibraryController::class, 'archive'])->name('boards.archive');
     Route::post('/papan/{board}/duplikat', [LibraryController::class, 'duplicate'])->name('boards.duplicate');
+    Route::post('/papan/{board}/salin-ke-rombel', [LibraryController::class, 'copyToClasses'])->name('boards.copy-classes');
+    Route::post('/papan/{board}/jadikan-template', [LibraryController::class, 'saveTemplate'])->name('boards.save-template');
+    Route::post('/template/{board}/pakai', [LibraryController::class, 'useTemplate'])->name('templates.use');
+    Route::post('/template/{board}/bagikan', [LibraryController::class, 'shareTemplate'])->name('templates.share');
     Route::post('/papan/{board}/folder', [LibraryController::class, 'moveToFolder'])->name('boards.move-folder');
     Route::post('/folder', [LibraryController::class, 'storeFolder'])->name('folders.store');
     Route::put('/folder/{folder}', [LibraryController::class, 'updateFolder'])->name('folders.update');
@@ -154,6 +158,12 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::post('/papan/{board}/komentar/{comment}/moderasi', [ModerationController::class, 'comment'])->name('moderation.comment');
     Route::post('/papan/{board}/kartu/{post}/lapor', [ModerationController::class, 'report'])->middleware('throttle:posts')->name('posts.report');
     Route::get('/p/{token}', [ModerationController::class, 'openLink'])->where('token', '[A-Za-z0-9]{20,40}')->name('boards.link');
+    Route::put('/papan/{board}/kartu/{post}/nilai', [\App\Modules\Board\Controllers\GradeController::class, 'grade'])->name('posts.grade');
+    Route::delete('/papan/{board}/kartu/{post}/nilai', [\App\Modules\Board\Controllers\GradeController::class, 'ungrade'])->name('posts.ungrade');
+    Route::get('/rekap-nilai', [\App\Modules\Recap\RecapController::class, 'index'])->name('recap.index');
+    Route::get('/rekap-nilai/ekspor', [\App\Modules\Recap\RecapController::class, 'export'])->name('recap.export');
+    Route::put('/komentar-cepat', [\App\Modules\Board\Controllers\GradeController::class, 'saveQuick'])->name('quick-comments.save');
+    Route::post('/papan/{board}/kartu/{post}/centang/{index}', [PostController::class, 'check'])->whereNumber('index')->middleware('throttle:sync')->name('posts.check');
     Route::post('/papan/{board}/kartu/{post}/pindah', [PostController::class, 'move'])->name('posts.move');
     Route::post('/papan/{board}/kartu/{post}/sematkan', [PostController::class, 'pin'])->name('posts.pin');
     Route::post('/papan/{board}/kolom', [SectionController::class, 'store'])->name('sections.store');

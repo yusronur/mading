@@ -51,7 +51,7 @@ class ExportController extends Controller
                 $i + 1,
                 $p->section?->title ?? '',
                 $p->title ?? '',
-                HtmlSanitizer::toText($p->body),
+                trim(HtmlSanitizer::toText($p->body)."\n".collect($p->checklist ?? [])->map(fn ($i) => ($i['done'] ? '[x] ' : '[ ] ').$i['text'])->implode("\n")),
                 $p->link['url'] ?? '',
                 $p->attachments->pluck('original_name')->implode(', '),
                 $p->author?->name ?? '',

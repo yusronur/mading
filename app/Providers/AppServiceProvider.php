@@ -41,6 +41,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Board::class, BoardPolicy::class);
         \App\Modules\Gamify\Hooks::register();
         \App\Modules\Notify\Hooks::register();
+        $this->registerBoardPulse();
         $this->app->singleton(\App\Modules\Notify\WebPush::class);
 
         // Nama pendek di kolom attachable_type (tidak membocorkan nama kelas)
@@ -119,5 +120,22 @@ class AppServiceProvider extends ServiceProvider
             (new Provisioner($owner['host'], (string) $owner['port'], $owner['username'], (string) $owner['password']))
                 ->grantAppRole($app['username'], $owner['database']);
         });
+    }
+
+    /** Tahap 20: perubahan kartu/kolom/papan memicu satu sinyal realtime per papan per permintaan. */
+    private function registerBoardPulse(): void
+    {
+        $pulse = \App\Core\Realtime\BoardPulse::class;
+        foreach ([\App\Models\Post::class, \App\Models\BoardSection::class] as $model) {
+            foreach (['created', 'updated', 'deleted', 'restored'] as $event) {
+                if (! method_exists($model, $event)) {
+                    continue;
+                }
+                $model::$event(fn ($m) => $pulse::mark($m->school_id, $m->board_id));
+            }
+        }
+        foreach (['updated', 'deleted'] as $event) {
+            Board::$event(fn (Board $b) => $pulse::mark($b->school_id, $b->id));
+        }
     }
 }

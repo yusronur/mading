@@ -4,21 +4,29 @@ import { useForm, router } from '@inertiajs/vue3';
 import Btn from '@/Components/Btn.vue';
 import Field from '@/Components/Field.vue';
 import Modal from '@/Components/Modal.vue';
+import DateField from '@/Components/DateField.vue';
 import { askConfirm } from '@/lib/confirm';
 import { BACKGROUNDS, ICONS } from '@/lib/backgrounds';
 
 const props = defineProps({ show: Boolean, board: Object, settings: Object, options: Object, can: Object });
 const emit = defineEmits(['close']);
 
-const sf = useForm({ ...(props.settings ?? {}) });
+const clone = () => JSON.parse(JSON.stringify(props.settings ?? {}));
+const sf = useForm(clone());
 watch(() => props.show, (open) => {
     if (open) {
-        sf.defaults({ ...props.settings }).reset();
+        sf.defaults(clone()).reset();
         sf.clearErrors();
     }
 });
 
-const save = () => sf.put(route('boards.update', props.board.id), {
+const addCriterion = () => {
+    sf.rubric = [...(sf.rubric ?? []), { name: '', max: 10 }];
+};
+const removeCriterion = (i) => (sf.rubric = sf.rubric.filter((_, j) => j !== i));
+const rubricMax = () => (sf.rubric ?? []).reduce((n, c) => n + (Number(c.max) || 0), 0);
+
+const save = () => sf.transform((d) => ({ ...d, opens_at: d.opens_at || null, closes_at: d.closes_at || null })).put(route('boards.update', props.board.id), {
     preserveScroll: true,
     onSuccess: () => emit('close'),
 });
@@ -116,8 +124,38 @@ const removeBoard = async () => {
                     <input v-model="sf.allow_anonymous" type="checkbox" class="size-5 accent-[var(--m-accent)]" /> Izinkan kartu anonim (guru tetap melihat penulisnya)
                 </label>
                 <label class="flex items-center gap-2 text-sm font-semibold">
+                    <input v-model="sf.checklist_all" type="checkbox" class="size-5 accent-[var(--m-accent)]" /> ☑️ Semua anggota boleh mencentang daftar di kartu (untuk tugas kelompok)
+                </label>
+                <label class="flex items-center gap-2 text-sm font-semibold">
                     <input v-model="sf.is_frozen" type="checkbox" class="size-5 accent-[var(--m-accent)]" /> ❄️ Bekukan papan (siswa tidak bisa menambah atau menghapus kartu)
                 </label>
+            </fieldset>
+
+            <fieldset class="space-y-3 rounded-2xl border border-line p-4">
+                <legend class="px-1 font-bold">⏰ Jadwal buka-tutup</legend>
+                <p class="text-xs text-muted">Sebelum waktu buka, siswa belum melihat kartu. Setelah waktu tutup, papan hanya bisa dibaca. Kosongkan bila tidak perlu.</p>
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <DateField v-model="sf.opens_at" mode="datetime" label="Dibuka" placeholder="Langsung terbuka" :quick="['06:00', '07:00', '08:00', '12:00']" :error="sf.errors.opens_at" />
+                    <DateField v-model="sf.closes_at" mode="datetime" label="Ditutup" placeholder="Tidak ditutup" :error="sf.errors.closes_at" />
+                </div>
+                <div class="flex gap-3 text-xs font-bold">
+                    <button v-if="sf.opens_at" type="button" class="text-muted hover:text-danger" @click="sf.opens_at = ''">✕ hapus waktu buka</button>
+                    <button v-if="sf.closes_at" type="button" class="text-muted hover:text-danger" @click="sf.closes_at = ''">✕ hapus waktu tutup</button>
+                </div>
+            </fieldset>
+
+            <fieldset class="space-y-3 rounded-2xl border border-line p-4" data-testid="rubric-editor">
+                <legend class="px-1 font-bold">📊 Rubrik penilaian kartu</legend>
+                <p class="text-xs text-muted">Bila diisi, guru bisa menilai tiap kartu siswa per kriteria. Nilai akhir otomatis 0–100 dan masuk Rekap Nilai.</p>
+                <div v-for="(c, i) in sf.rubric ?? []" :key="i" class="flex items-center gap-2">
+                    <input v-model="c.name" maxlength="60" :placeholder="`Kriteria ${i + 1}, mis. Isi`" class="h-10 min-w-0 flex-1 rounded-xl border-2 border-line bg-surface px-3" :aria-label="`Nama kriteria ${i + 1}`" />
+                    <input v-model.number="c.max" type="number" min="1" max="100" class="h-10 w-20 rounded-xl border-2 border-line bg-surface px-2 text-right" :aria-label="`Skor maksimal kriteria ${i + 1}`" />
+                    <button type="button" class="grid size-8 place-items-center rounded-full text-muted hover:bg-surface2" :aria-label="`Hapus kriteria ${i + 1}`" @click="removeCriterion(i)">✕</button>
+                </div>
+                <div class="flex items-center justify-between">
+                    <button v-if="(sf.rubric ?? []).length < 6" type="button" class="text-sm font-bold text-accent" data-testid="add-criterion" @click="addCriterion">+ Tambah kriteria</button>
+                    <span v-if="(sf.rubric ?? []).length" class="text-xs text-muted">Total skor maks.: {{ rubricMax() }}</span>
+                </div>
             </fieldset>
 
             <Btn type="submit" block size="lg" :loading="sf.processing">Simpan pengaturan</Btn>

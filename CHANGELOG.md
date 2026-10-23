@@ -2,6 +2,41 @@
 
 Format mengikuti Blueprint Bab 17.2. Versi memakai SemVer (`0.x` selama Fase 0-3).
 
+## [0.2.0-alpha.15] - 2026-10-23 — Tahap 20: kartu realtime + uji beban
+
+### Ditambahkan
+- ⚡ Kartu papan realtime lewat Reverb: kartu baru, ubah, hapus, pindah, sematan, reaksi, komentar, centang, nilai, kolom, dan pengaturan papan muncul di layar semua peserta tanpa jeda pengecekan (uji lokal: ±1 detik dari kirim sampai tampil di layar guru).
+- Satu permintaan = satu sinyal per papan, dikirim setelah respons, membawa penanda versi; klien yang sudah mutakhir tidak memuat ulang, klien lain memuat ulang dengan jeda acak 0–0,6 detik agar server tidak diserbu serentak.
+- Saat WebSocket tersambung, pengecekan `/sinkron` turun dari tiap 2 detik menjadi tiap 30 detik (jaring pengaman). Bila Reverb mati, otomatis kembali ke tiap 2 detik; tab tersembunyi tidak memuat apa pun dan langsung menyusul saat dibuka.
+- Uji beban k6: `tests/load/board.js` (papan) dan `tests/load/live.js` (kuis live), keduanya memakai WebSocket seperti peramban; perintah `php artisan madingo:loadtest seed|clean` untuk akun uji `uji-beban-*`. Panduan di `tests/load/README.md` dan DEPLOY bagian 8.6–8.7.
+
+### Diperbaiki
+- Kanal WebSocket yang dipakai bersama (kartu + aktivitas papan) tidak lagi ikut terputus saat salah satu komponen ditutup.
+
+## [0.2.0-alpha.14] - 2026-10-23 — Tahap 18: alat guru
+
+### Ditambahkan
+- 📊 Rubrik penilaian kartu (Pengaturan papan, maks. 6 kriteria). Guru menilai kartu siswa per kriteria + umpan balik; nilai 0–100 tampil sebagai lencana di kartu (hanya penulis dan guru). Siswa mendapat notifikasi "Kartumu sudah dinilai" (sekali per kartu) yang langsung membuka kartunya.
+- 📊 Menu **Rekap Nilai** (guru & admin): satu tabel per rombel berisi nilai tugas kuis, kuis live, dan rubrik papan, rata-rata siswa dan kelas, tanda merah di bawah KKM, unduh Excel. Guru melihat miliknya; admin bisa semua guru.
+- ⭐ Template papan: simpan papan (kolom, pengaturan, rubrik, kartu contoh guru) sebagai template pribadi atau dibagikan ke semua guru; pilih "Mulai dari template" saat membuat papan; tab Template di Papan Saya.
+- 📤 Salin papan ke beberapa rombel sekaligus (mis. untuk tahun ajaran baru), dengan atau tanpa kartu buatan guru. Kartu siswa tidak ikut.
+- ⏰ Jadwal buka-tutup papan: sebelum dibuka siswa belum melihat kartu; setelah ditutup papan hanya bisa dibaca. Status berubah otomatis tanpa muat ulang.
+- 💬 Komentar cepat guru: deretan komentar siap pakai di kolom komentar dan umpan balik rubrik; bisa diatur sendiri (maks. 20).
+
+### Migrasi
+- Tabel `post_grades`; kolom `boards.is_template`, `boards.template_shared`, `user_preferences.quick_comments`.
+
+## [0.2.0-alpha.13] - 2026-10-23 — Tahap 17: isi kartu
+
+### Ditambahkan
+- ✏️ Coretan: menggambar langsung di form kartu (8 warna, 3 ketebalan, penghapus, urungkan). Hasil disimpan sebagai gambar lampiran.
+- 🎙️ Rekam suara di kartu, maksimal 3 menit, bisa didengar ulang sebelum dipakai. Rekaman WebM/Ogg dari peramban dikenali sebagai audio.
+- ☑️ Daftar centang di kartu (maks. 30 butir) dengan bilah kemajuan. Centang langsung tersimpan. Penulis dan guru boleh mencentang; pengaturan papan "Semua anggota boleh mencentang" untuk tugas kelompok. Ikut diperiksa filter kata kasar dan ikut diekspor.
+- 🔗 Sematan selain YouTube: Vimeo, Google Slides/Dokumen/Spreadsheet/Formulir/Drive, dan Canva. Dimuat hanya saat diketuk (hemat kuota); alamat sematan dibangun ulang dari pola ketat.
+
+### Migrasi
+- `posts.checklist` (jsonb).
+
 ## [0.2.0-alpha.12] - 2026-10-23
 
 ### Ditambahkan

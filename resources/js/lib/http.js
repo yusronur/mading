@@ -29,6 +29,7 @@ export async function postJson(url, body = {}, method = 'POST') {
 }
 
 export const deleteJson = (url) => postJson(url, {}, 'DELETE');
+export const putJson = (url, body = {}) => postJson(url, body, 'PUT');
 
 /** Unggah satu berkas dengan progres (0-100). */
 export function upload(url, file, onProgress = () => {}, field = 'file') {

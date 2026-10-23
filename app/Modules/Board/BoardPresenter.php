@@ -38,6 +38,12 @@ class BoardPresenter
             'allow_comments' => $board->allowsComments(),
             'require_approval' => $board->requiresApproval(),
             'max_posts' => $board->maxPostsPerStudent(),
+            'schedule' => $board->scheduleState(),
+            'opens_at' => $board->setting('opens_at'),
+            'closes_at' => $board->setting('closes_at'),
+            'rubric' => $board->rubric(),
+            'is_template' => (bool) $board->is_template,
+            'checklist_all' => (bool) $board->setting('checklist_all', false),
         ];
     }
 
@@ -64,7 +70,13 @@ class BoardPresenter
     {
         $canManage = Gate::forUser($user)->allows('manage', $board);
         $canModerate = Gate::forUser($user)->allows('moderate', $board);
+        $checkAll = $board->setting('checklist_all', false) && Gate::forUser($user)->allows('post', $board);
         $kind = $board->reactionKind();
+
+        // Sebelum jadwal buka, siswa belum melihat kartu apa pun
+        if (! $canManage && $board->scheduleState() === 'before') {
+            return [];
+        }
 
         // Moderator melihat semua; siswa melihat yang tayang + miliknya sendiri yang ditahan
         $posts = $this->orderedPosts($board)
@@ -89,7 +101,12 @@ class BoardPresenter
                 ->groupBy('post_id')->selectRaw('post_id, count(*) as n')->pluck('n', 'post_id')
             : collect();
 
-        return $posts->map(function (Post $p) use ($user, $canManage, $canModerate, $board, $reactions, $othersComments, $othersReactions) {
+        // Nilai rubrik: hanya pengelola dan penulis kartu yang melihat
+        $grades = $board->rubric() || $canManage
+            ? \App\Models\PostGrade::whereIn('post_id', $posts->pluck('id'))->with('grader:id,name')->get()->keyBy('post_id')
+            : collect();
+
+        return $posts->map(function (Post $p) use ($user, $canManage, $canModerate, $checkAll, $grades, $board, $reactions, $othersComments, $othersReactions) {
                 // Identitas asli post anonim tidak pernah dikirim ke siswa lain
                 $showAuthor = ! $p->is_anonymous || $canManage || $p->author_id === $user->id;
 
@@ -100,6 +117,9 @@ class BoardPresenter
                     'body' => $p->body,
                     'color' => $p->color,
                     'link' => $this->link($board, $p),
+                    'checklist' => $p->checklist,
+                    'grade' => ($canManage || $p->author_id === $user->id) && isset($grades[$p->id]) ? $grades[$p->id]->toCard() : null,
+                    'can_check' => $canManage || ($p->author_id === $user->id && ! $board->isLocked() && ! $board->archived_at) || $checkAll,
                     'attachments' => $p->attachments->map->toCard()->all(),
                     'edited' => $p->edited_at !== null,
                     'is_pinned' => $p->is_pinned,
@@ -116,8 +136,8 @@ class BoardPresenter
                     'report_count' => $canModerate ? $p->report_count : 0,
                     'reaction' => $reactions[$p->id] ?? null,
                     // Sama dengan BoardPolicy::updatePost/deletePost, dihitung tanpa query per kartu
-                    'can_edit' => $canManage || ($p->author_id === $user->id && ! $board->is_frozen && ! $board->archived_at),
-                    'can_delete' => $canModerate || ($p->author_id === $user->id && ! $board->is_frozen),
+                    'can_edit' => $canManage || ($p->author_id === $user->id && ! $board->isLocked() && ! $board->archived_at),
+                    'can_delete' => $canModerate || ($p->author_id === $user->id && ! $board->isLocked()),
                     'can_report' => $p->author_id !== $user->id && ! $canModerate && $p->status === 'published',
                 ];
             })->all();
@@ -195,7 +215,7 @@ class BoardPresenter
 
         return substr(md5(implode('|', [
             $posts->visible, $posts->latest, $sections->c, $sections->m,
-            $board->updated_at?->format('U.u'),
+            $board->updated_at?->format('U.u'), $board->scheduleState(),
         ])), 0, 12);
     }
 
@@ -220,7 +240,17 @@ class BoardPresenter
             'allow_anonymous' => (bool) $board->setting('allow_anonymous', false),
             'reaction' => $board->reactionKind(),
             'allow_comments' => $board->allowsComments(),
+            'checklist_all' => (bool) $board->setting('checklist_all', false),
+            'opens_at' => self::localInput($board->setting('opens_at')),
+            'closes_at' => self::localInput($board->setting('closes_at')),
+            'rubric' => $board->rubric(),
         ];
+    }
+
+    /** ISO UTC -> "YYYY-MM-DDTHH:mm" zona sekolah untuk DateField. */
+    private static function localInput(?string $iso): string
+    {
+        return $iso ? \Illuminate\Support\Carbon::parse($iso)->timezone(config('app.timezone'))->format('Y-m-d\TH:i') : '';
     }
 
     public function options(): array

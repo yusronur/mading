@@ -205,3 +205,32 @@ REVERB_CLIENT_SCHEME=http
 ```
 
 Jalankan `php artisan reverb:start` di terminal terpisah selama mencoba.
+
+### 8.6 Kartu papan realtime (Tahap 20) dan kapasitas
+
+Sejak alpha.15 kartu, kolom, centang, nilai, dan pengaturan papan juga dikirim lewat Reverb
+(kanal yang sama dengan aktivitas papan). Satu permintaan = satu sinyal per papan, dikirim
+**setelah** respons. Saat WebSocket tersambung, peramban hampir tidak lagi mengecek `/sinkron`
+(hanya tiap 30 detik sebagai jaring pengaman), jadi beban HTTP saat kelas ramai turun drastis.
+Bila Reverb mati, peramban otomatis kembali ke pengecekan tiap 2 detik dan admin mendapat
+notifikasi "Realtime (Reverb) tidak terjangkau".
+
+Setelah `git pull`: `$PHP artisan reverb:restart` (Supervisor menyalakannya lagi).
+
+Untuk >300 koneksi bersamaan naikkan batas berkas terbuka proses Reverb, mis. di Supervisor
+tambahkan sebelum perintah: `bash -c "ulimit -n 10000 && exec /www/server/php/83/bin/php artisan reverb:start --host=127.0.0.1 --port=8080"`.
+Pasang ekstensi PHP `event` (aaPanel → PHP 8.3 → Install extensions) bila tersedia; Reverb
+otomatis memakainya dan jauh lebih kuat untuk ribuan koneksi.
+
+### 8.7 Uji beban (k6)
+
+Lihat `tests/load/README.md`. Ringkas:
+
+```bash
+$PHP artisan madingo:loadtest seed --students=200 --force   # akun uji-beban-0001…, rombel UJI-BEBAN
+k6 run -e BASE_URL=https://board.smpn1wajak.sch.id -e DATA=storage/app/loadtest.json -e VUS=200 tests/load/board.js
+k6 run -e BASE_URL=https://board.smpn1wajak.sch.id -e DATA=storage/app/loadtest.json -e VUS=200 tests/load/live.js
+$PHP artisan madingo:loadtest clean --force                 # WAJIB setelah selesai
+```
+
+Jalankan k6 dari komputer lain (bukan server), di luar jam sekolah.

@@ -5,6 +5,7 @@ import { cardStyle } from '@/lib/colors';
 import { formatBytes } from '@/lib/http';
 import LinkPreview from '@/Components/Board/LinkPreview.vue';
 import Reactions from '@/Components/Board/Reactions.vue';
+import Checklist from '@/Components/Board/Checklist.vue';
 
 const props = defineProps({
     post: Object,
@@ -81,9 +82,12 @@ const viewable = (a) => ['audio', 'video'].includes(a.kind) || a.mime === 'appli
             </button>
         </div>
 
+        <p v-if="post.grade" class="mb-1 inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-xs font-bold text-success" data-testid="grade-badge" title="Nilai rubrik">📊 {{ post.grade.grade }}</p>
         <h3 v-if="post.title" class="text-lg leading-snug font-bold break-words">{{ post.title }}</h3>
         <!-- HTML sudah dibersihkan server (HtmlSanitizer, daftar putih) -->
         <div v-if="post.body" class="rich mt-1 break-words" :class="compact ? 'line-clamp-6' : ''" v-html="post.body"></div>
+
+        <Checklist v-if="post.checklist?.length" :post="post" :board-id="boardId" />
 
         <LinkPreview v-if="post.link" :link="post.link" class="mt-3" />
 

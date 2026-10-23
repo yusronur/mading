@@ -9,7 +9,7 @@ import { toast } from '@/lib/toast';
 
 // Bagikan papan: kode, tautan, QR, ekspor, salin papan (SHR-01, SHR-04, SHR-05, BRD-14).
 const props = defineProps({ show: Boolean, board: Object, can: Object, secretUrl: String });
-const emit = defineEmits(['close', 'png']);
+const emit = defineEmits(['close', 'png', 'tool']);
 const qr = ref('');
 
 watch(() => props.show, async (open) => {
@@ -51,6 +51,8 @@ const duplicate = (withPosts) => router.post(route('boards.duplicate', props.boa
                 <div class="flex flex-wrap gap-2">
                     <Btn size="sm" variant="soft" @click="duplicate(false)">Hanya struktur & pengaturan</Btn>
                     <Btn size="sm" variant="soft" @click="duplicate(true)">Beserta semua kartu</Btn>
+                    <Btn size="sm" variant="soft" data-testid="open-copy-classes" @click="emit('tool', 'classes')">📤 Ke rombel lain / tahun baru</Btn>
+                    <Btn size="sm" variant="soft" data-testid="open-template" @click="emit('tool', 'template')">⭐ Jadikan template</Btn>
                 </div>
             </div>
         </div>

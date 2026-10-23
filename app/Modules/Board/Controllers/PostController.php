@@ -36,7 +36,7 @@ class PostController extends Controller
             throw ValidationException::withMessages(['body' => "Kamu sudah menempel {$max} kartu di papan ini (batas dari guru)."]);
         }
 
-        $decision = $this->moderation->decide($board, $user, (string) $data['title'], (string) $data['body'], (string) $data['link']);
+        $decision = $this->moderation->decide($board, $user, (string) $data['title'], (string) $data['body'], (string) $data['link'], $this->checklistText($data['checklist']));
 
         $sectionId = $data['section_id'] ?? null;
         if ($board->format === 'shelf' && ! $sectionId) {
@@ -56,6 +56,7 @@ class PostController extends Controller
                 'body' => $data['body'],
                 'color' => $data['color'] ?? null,
                 'link' => $this->linkData($board, $data['link'] ?? null),
+                'checklist' => $data['checklist'],
                 'status' => $decision['status'],
                 'moderation_reason' => $decision['moderation_reason'],
                 'position' => Positions::between(null, $min === null ? null : (float) $min),
@@ -78,7 +79,7 @@ class PostController extends Controller
         $this->ensureBelongs($board, $post);
         Gate::authorize('updatePost', [$board, $post]);
         $data = $this->validated($request, $board, $post);
-        $decision = $this->moderation->decide($board, $request->user(), (string) $data['title'], (string) $data['body'], (string) $data['link']);
+        $decision = $this->moderation->decide($board, $request->user(), (string) $data['title'], (string) $data['body'], (string) $data['link'], $this->checklistText($data['checklist']));
 
         DB::transaction(function () use ($request, $board, $post, $data, $decision) {
             $oldLink = $post->link;
@@ -89,6 +90,7 @@ class PostController extends Controller
                 'body' => $data['body'],
                 'color' => $data['color'] ?? null,
                 'link' => ($oldLink['url'] ?? null) === $newUrl ? $oldLink : $this->linkData($board, $newUrl),
+                'checklist' => $data['checklist'],
                 'edited_at' => now(),
             ]);
 
@@ -205,7 +207,16 @@ class PostController extends Controller
             'attachment_ids' => ['array', 'max:10'],
             'attachment_ids.*' => ['uuid'],
             'section_id' => ['nullable', 'uuid', Rule::exists('board_sections', 'id')->where('board_id', $board->id)],
-        ], [], ['title' => 'judul', 'body' => 'isi', 'link' => 'tautan', 'attachment_ids' => 'lampiran']);
+            'checklist' => ['nullable', 'array', 'max:'.Post::CHECKLIST_MAX],
+            'checklist.*.text' => ['nullable', 'string', 'max:200'],
+            'checklist.*.done' => ['boolean'],
+        ], [], ['title' => 'judul', 'body' => 'isi', 'link' => 'tautan', 'attachment_ids' => 'lampiran', 'checklist' => 'daftar centang', 'checklist.*.text' => 'butir daftar']);
+
+        // Butir kosong dibuang; hanya teks polos yang disimpan
+        $items = collect($data['checklist'] ?? [])
+            ->map(fn ($i) => ['text' => trim(strip_tags((string) ($i['text'] ?? ''))), 'done' => (bool) ($i['done'] ?? false)])
+            ->filter(fn ($i) => $i['text'] !== '')->values()->all();
+        $data['checklist'] = $items ?: null;
 
         $data['title'] = ! empty($data['title']) ? trim(strip_tags($data['title'])) : null;
         $data['body'] = $this->sanitizer->clean($data['body'] ?? null);
@@ -219,11 +230,45 @@ class PostController extends Controller
             throw ValidationException::withMessages(['body' => 'Isi kartu maksimal 5.000 karakter.']);
         }
 
-        if (! $data['title'] && ! $data['body'] && ! $data['link'] && empty($data['attachment_ids'])) {
-            throw ValidationException::withMessages(['body' => 'Isi judul, teks, tautan, atau lampiran.']);
+        if (! $data['title'] && ! $data['body'] && ! $data['link'] && empty($data['attachment_ids']) && ! $data['checklist']) {
+            throw ValidationException::withMessages(['body' => 'Isi judul, teks, daftar, tautan, atau lampiran.']);
         }
 
         return $data;
+    }
+
+    /**
+     * Centang/batal satu butir daftar. Penulis kartu dan pengelola papan boleh;
+     * di papan kolaboratif (allow_check_all) semua anggota boleh mencentang.
+     */
+    public function check(Request $request, Board $board, Post $post, int $index): JsonResponse
+    {
+        $this->ensureBelongs($board, $post);
+        $user = $request->user();
+        $can = Gate::forUser($user)->allows('updatePost', [$board, $post])
+            || ($board->setting('checklist_all', false) && Gate::forUser($user)->allows('post', $board));
+        abort_unless($can, 403);
+
+        $done = $request->validate(['done' => ['required', 'boolean']])['done'];
+
+        // Kunci baris supaya dua klik bersamaan tidak saling menimpa
+        $items = DB::transaction(function () use ($post, $index, $done) {
+            $fresh = Post::whereKey($post->id)->lockForUpdate()->first();
+            $items = $fresh->checklist ?? [];
+            abort_unless(isset($items[$index]), 404);
+            $items[$index]['done'] = (bool) $done;
+            $fresh->forceFill(['checklist' => $items])->save();
+
+            return $items;
+        });
+        $board->touch();
+
+        return response()->json(['checklist' => $items]);
+    }
+
+    private function checklistText(?array $items): string
+    {
+        return collect($items ?? [])->pluck('text')->implode("\n");
     }
 
     /** Pasang lampiran milik pengguna (yang belum terpakai) dan lepas yang dibuang. */

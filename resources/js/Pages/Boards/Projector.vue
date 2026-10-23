@@ -17,7 +17,7 @@ import { seedActivity } from '@/lib/activity';
 const props = defineProps({ board: Object, posts: Array, sections: Array, version: String, can: Object, activity: Object, activity_channel: String });
 const page = usePage();
 watch(() => page.props.theme, (t) => applyTheme(t), { immediate: true, deep: true });
-useBoardSync(() => props.board.id, () => props.version, ['posts', 'sections', 'board', 'version', 'theme']);
+useBoardSync(() => props.board.id, () => props.version, ['posts', 'sections', 'board', 'version', 'theme'], () => props.activity_channel);
 
 const activity = seedActivity(props.board.id, props.activity);
 const hasActivity = computed(() => !!activity.value);
