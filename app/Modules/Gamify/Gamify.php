@@ -332,8 +332,21 @@ class Gamify
     // ---------------------------------------------------------------- papan peringkat (GAM-06)
 
     /** @return array{rows:list<array>,me:?array} */
-    public function leaderboard(SchoolClass $class, string $period, ?User $viewer = null, int $limit = 20): array
+    /**
+     * @param  ?string  $ownerId  bila diisi, hanya hitung XP yang bersumber dari kuis (host) dan papan (pemilik) milik user ini
+     */
+    /** Sumber XP milik seorang guru: kartu/komentar/aktivitas di papannya, serta kuis & sesi live yang ia host. */
+    private const MINE_SQL = "(
+        (e.source_type = 'post' and e.source_id in (select p.id::text from posts p join boards b on b.id = p.board_id where b.owner_id = ?))
+        or (e.source_type = 'comment' and e.source_id in (select c.id::text from comments c join posts p on p.id = c.post_id join boards b on b.id = p.board_id where b.owner_id = ?))
+        or (e.source_type = 'activity' and e.source_id in (select a.id::text from board_activities a join boards b on b.id = a.board_id where b.owner_id = ?))
+        or (e.source_type = 'attempt' and e.source_id in (select t.id::text from quiz_attempts t join quiz_sessions s on s.id = t.session_id where s.host_id = ?))
+        or (e.source_type = 'session' and e.source_id in (select s.id::text from quiz_sessions s where s.host_id = ?))
+    )";
+
+    public function leaderboard(SchoolClass $class, string $period, ?User $viewer = null, int $limit = 20, ?string $ownerId = null): array
     {
+        $mine = $ownerId !== null;
         $week = $period !== 'total';
         $start = now()->startOfWeek();
 
@@ -341,15 +354,18 @@ class Gamify
             ->join('users as u', 'u.id', '=', 'm.user_id')
             ->leftJoin('user_levels as l', 'l.user_id', '=', 'u.id')
             ->leftJoin('user_preferences as p', 'p.user_id', '=', 'u.id')
-            ->leftJoin('xp_events as e', function ($j) use ($week, $start) {
+            ->leftJoin('xp_events as e', function ($j) use ($week, $start, $mine, $ownerId) {
                 $j->on('e.user_id', '=', 'u.id');
                 if ($week) {
                     $j->where('e.created_at', '>=', $start);
                 }
+                if ($mine) {
+                    $j->whereRaw(self::MINE_SQL, array_fill(0, 5, $ownerId));
+                }
             })
             ->where('m.class_id', $class->id)->where('u.role', User::ROLE_STUDENT)->whereNull('u.deleted_at')
             ->groupBy('u.id', 'u.name', 'l.xp', 'l.level', 'p.avatar', 'p.frame')
-            ->selectRaw('u.id, u.name, p.avatar, p.frame, coalesce(l.level, 1) as level, '.($week ? 'coalesce(sum(e.points), 0)' : 'coalesce(l.xp, 0)').' as xp')
+            ->selectRaw('u.id, u.name, p.avatar, p.frame, coalesce(l.level, 1) as level, '.(($week || $mine) ? 'coalesce(sum(e.points), 0)' : 'coalesce(l.xp, 0)').' as xp')
             ->orderByDesc('xp')->orderBy('u.name')
             ->get();
 

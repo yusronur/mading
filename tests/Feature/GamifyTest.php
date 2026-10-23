@@ -177,7 +177,9 @@ class GamifyTest extends TestCase
         $this->assertSame([1, 1], array_column($p['board']['rows'], 'rank')); // seri = peringkat sama
 
         // Guru menyembunyikan peringkat: siswa tidak melihat data, guru tetap
-        $this->actingAs($this->teacher)->post(route('gamify.toggle', $class))->assertRedirect();
+        $this->actingAs($this->teacher)->post(route('gamify.toggle', $class))->assertForbidden(); // guru tidak boleh
+        $admin = $this->makeUser($this->school, User::ROLE_ADMIN);
+        $this->actingAs($admin)->post(route('gamify.toggle', $class))->assertRedirect();
         $p = $page($this->ani);
         $this->assertTrue($p['hidden']);
         $this->assertNull($p['board']);
@@ -186,6 +188,33 @@ class GamifyTest extends TestCase
         // Siswa tidak bisa mengubah pengaturan atau mengintip kelas lain
         $this->actingAs($this->ani)->post(route('gamify.toggle', $class))->assertForbidden();
         $this->assertSame($class->id, $this->actingAs($this->ani)->get(route('gamify.leaderboard', ['kelas' => $other->id]))->original->getData()['page']['props']['class_id']);
+    }
+
+    public function test_teacher_filter_counts_only_xp_from_own_boards_and_quizzes(): void
+    {
+        $class = $this->inSchool($this->school, function () {
+            $year = AcademicYear::active();
+            $c = SchoolClass::create(['academic_year_id' => $year->id, 'name' => '7A', 'grade' => 7]);
+            DB::table('class_members')->insert(['class_id' => $c->id, 'user_id' => $this->ani->id, 'school_id' => $this->school->id, 'created_at' => now(), 'updated_at' => now()]);
+
+            return $c;
+        });
+        $this->g(function (Gamify $g) {
+            $g->award($this->ani, 'post', 'post', (string) \Illuminate\Support\Str::uuid(), 10); // sumber tak dikenal → bukan milik guru
+        });
+        $this->actingAs($this->ani)->post(route('posts.store', $this->board), ['body' => '<p>Ideku di papan guru</p>']);
+        $this->board->forceFill(['owner_id' => $this->teacher->id])->save();
+
+        $props = fn ($q) => $this->actingAs($this->teacher)->get(route('gamify.leaderboard', ['kelas' => $class->id, 'periode' => 'total'] + $q))->original->getData()['page']['props'];
+        $all = $props([])['board']['rows'][0]['xp'];
+        $mine = $props(['sumber' => 'saya']);
+        $this->assertTrue($mine['mine']);
+        $this->assertGreaterThan(0, $mine['board']['rows'][0]['xp']);
+        $this->assertLessThan($all, $mine['board']['rows'][0]['xp']);
+        // guru lain tidak punya papan/kuis ini → 0
+        $other = $this->makeUser($this->school, User::ROLE_TEACHER);
+        $r = $this->actingAs($other)->get(route('gamify.leaderboard', ['kelas' => $class->id, 'periode' => 'total', 'sumber' => 'saya']))->original->getData()['page']['props'];
+        $this->assertSame(0, $r['board']['rows'][0]['xp']);
     }
 
     public function test_cosmetics_unlock_by_xp_and_themes_follow(): void

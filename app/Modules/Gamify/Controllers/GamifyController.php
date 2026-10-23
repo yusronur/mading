@@ -56,21 +56,24 @@ class GamifyController extends Controller
         $period = $request->query('periode') === 'total' ? 'total' : 'minggu';
         $isStudent = $user->role === User::ROLE_STUDENT;
         $hidden = $class && ! $class->leaderboard && $isStudent;
+        $mine = $user->role === User::ROLE_TEACHER && $request->query('sumber') === 'saya';
 
         return Inertia::render('Gamify/Leaderboard', [
             'classes' => $classes->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'leaderboard' => (bool) $c->leaderboard])->values(),
             'class_id' => $class?->id,
             'period' => $period,
-            'board' => $class && ! $hidden ? $this->gamify->leaderboard($class, $period, $isStudent ? $user : null, $isStudent ? 10 : 50) : null,
+            'board' => $class && ! $hidden ? $this->gamify->leaderboard($class, $period, $isStudent ? $user : null, $isStudent ? 10 : 50, $mine ? $user->id : null) : null,
             'hidden' => $hidden,
-            'can_toggle' => ! $isStudent,
+            'can_toggle' => $user->role === User::ROLE_ADMIN,
+            'can_filter' => $user->role === User::ROLE_TEACHER,
+            'mine' => $mine,
             'me_id' => $user->id,
         ]);
     }
 
     public function toggle(Request $request, SchoolClass $class): RedirectResponse
     {
-        abort_unless($request->user()->hasRole(User::ROLE_TEACHER, User::ROLE_ADMIN), 403);
+        abort_unless($request->user()->role === User::ROLE_ADMIN, 403);
         $class->update(['leaderboard' => ! $class->leaderboard]);
 
         return back()->with('success', $class->leaderboard ? 'Papan peringkat kelas ditampilkan ke siswa.' : 'Papan peringkat kelas disembunyikan dari siswa.');

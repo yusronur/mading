@@ -2,6 +2,14 @@
 
 Format mengikuti Blueprint Bab 17.2. Versi memakai SemVer (`0.x` selama Fase 0-3).
 
+## [0.2.0-alpha.12] - 2026-10-23
+
+### Ditambahkan
+- Peringkat kelas (guru): filter "XP dari kuis & papan saya" selain "Semua XP" (default tetap gabungan). Hanya menghitung XP dari kuis/sesi live yang ia host dan papan yang ia miliki.
+
+### Diubah
+- Tombol tampilkan/sembunyikan peringkat ke siswa kini hanya untuk admin sekolah (guru tidak bisa lagi).
+
 ## [0.2.0-alpha.11] - 2026-10-23
 
 ### Diperbaiki

@@ -6,8 +6,9 @@ import Btn from '@/Components/Btn.vue';
 import Avatar from '@/Components/Avatar.vue';
 import EmptyState from '@/Components/EmptyState.vue';
 
-const props = defineProps({ classes: Array, class_id: String, period: String, board: Object, hidden: Boolean, can_toggle: Boolean, me_id: String });
-const go = (extra) => router.get(route('gamify.leaderboard'), { kelas: props.class_id, periode: props.period, ...extra }, { preserveScroll: true, preserveState: true });
+const props = defineProps({ classes: Array, class_id: String, period: String, board: Object, hidden: Boolean, can_toggle: Boolean, can_filter: Boolean, mine: Boolean, me_id: String });
+const go = (extra) => router.get(route('gamify.leaderboard'), { kelas: props.class_id, periode: props.period, sumber: props.mine ? 'saya' : undefined, ...extra }, { preserveScroll: true, preserveState: true });
+const isStaff = props.can_toggle || props.can_filter;
 const medal = (r) => ({ 1: '🥇', 2: '🥈', 3: '🥉' })[r] ?? r;
 const current = () => props.classes.find((c) => c.id === props.class_id);
 const toggle = () => router.post(route('gamify.toggle', props.class_id), {}, { preserveScroll: true });
@@ -21,7 +22,11 @@ const toggle = () => router.post(route('gamify.toggle', props.class_id), {}, { p
                 <button v-for="p in [['minggu', 'Minggu ini'], ['total', 'Sepanjang waktu']]" :key="p[0]" role="tab" :aria-selected="period === p[0]"
                     class="rounded-lg px-4 py-2 text-sm font-bold" :class="period === p[0] ? 'bg-surface shadow-card' : 'text-muted'" @click="go({ periode: p[0] })">{{ p[1] }}</button>
             </div>
-            <select v-if="can_toggle && classes.length" :value="class_id" class="h-11 rounded-xl border-2 border-line bg-surface px-3 font-bold" @change="go({ kelas: $event.target.value })">
+            <div v-if="can_filter" class="flex rounded-xl bg-surface2 p-1" role="tablist">
+                <button v-for="p in [[false, 'Semua XP'], [true, 'XP dari kuis & papan saya']]" :key="String(p[0])" role="tab" :aria-selected="mine === p[0]" :data-testid="p[0] ? 'filter-mine' : 'filter-all'"
+                    class="rounded-lg px-4 py-2 text-sm font-bold" :class="mine === p[0] ? 'bg-surface shadow-card' : 'text-muted'" @click="go({ sumber: p[0] ? 'saya' : undefined })">{{ p[1] }}</button>
+            </div>
+            <select v-if="isStaff && classes.length" :value="class_id" class="h-11 rounded-xl border-2 border-line bg-surface px-3 font-bold" @change="go({ kelas: $event.target.value })">
                 <option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select>
             <Btn v-if="can_toggle && class_id" variant="soft" class="ml-auto" data-testid="toggle-leaderboard" @click="toggle">
